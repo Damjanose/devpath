@@ -1,5 +1,6 @@
 import prisma from "../lib/prisma";
 import { ApiError } from "../lib/ApiError";
+import bcrypt from "bcryptjs";
 
 export const enrollmentService = {
   async enroll(userId: string, courseId: string) {
@@ -20,9 +21,62 @@ export const enrollmentService = {
     });
   },
 
+  async enrollGuest(courseId: string, email: string) {
+    // Check course exists and is published
+    const course = await prisma.course.findUnique({ where: { id: courseId } });
+    if (!course) throw ApiError.notFound("Course not found");
+    if (!course.isPublished) throw ApiError.badRequest("Course is not available");
+
+    // Try to find or create user by email
+    let user = await prisma.user.findUnique({ where: { email } });
+    
+    if (!user) {
+      // Create a user with a random password for guest enrollments
+      const randomPassword = Math.random().toString(36).slice(-12);
+      const passwordHash = await bcrypt.hash(randomPassword, 12);
+      
+      user = await prisma.user.create({
+        data: {
+          email,
+          passwordHash,
+          profile: { create: { displayName: email.split("@")[0], totalPoints: 0, level: 1 } },
+          roles: { create: { role: "user" } },
+        },
+      });
+    }
+
+    // Check if already enrolled
+    const existing = await prisma.enrollment.findUnique({
+      where: { userId_courseId: { userId: user.id, courseId } },
+    });
+    if (existing) throw ApiError.conflict("Already enrolled in this course");
+
+    return prisma.enrollment.create({
+      data: { userId: user.id, courseId },
+      include: { course: true },
+    });
+  },
+
   async getUserEnrollments(userId: string) {
     return prisma.enrollment.findMany({
       where: { userId },
+      include: {
+        course: {
+          include: {
+            _count: { select: { modules: true } },
+          },
+        },
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+  },
+
+  async getUserEnrollmentsByEmail(email: string) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return [];
+    
+    return prisma.enrollment.findMany({
+      where: { userId: user.id },
       include: {
         course: {
           include: {
@@ -63,5 +117,14 @@ export const enrollmentService = {
       enrollment,
       completedLessonIds: completedLessonIds.map((cl) => cl.lessonId),
     };
+  },
+
+  async getUserProgressByEmail(email: string, courseId: string) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return { enrollment: null, completedLessonIds: [] as string[] };
+    }
+
+    return this.getUserProgress(user.id, courseId);
   },
 };

@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchCourse } from "@/lib/api";
+import { fetchCourse, enrollCourse, fetchEnrollmentsByEmail, fetchCourseProgressByEmail } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
@@ -11,49 +11,168 @@ import { BookOpen, ChevronRight, Zap, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Footer } from "@/components/Footer";
 
+interface Lesson {
+  id: string;
+  title: string;
+  sort_order: number;
+  estimated_minutes: number;
+}
+
+interface Module {
+  id: string;
+  title: string;
+  description?: string;
+  lessons: Lesson[];
+}
+
+interface Course {
+  id: string;
+  title: string;
+  description?: string;
+  difficulty: string;
+  points_reward: number;
+  modules?: Module[];
+}
+
+interface Enrollment {
+  id?: string;
+  course_id: string;
+  progress_percentage: number;
+  [key: string]: unknown;
+}
+
 export default function CourseDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [course, setCourse] = useState<any | null>(null);
-  const [modules, setModules] = useState<any[]>([]);
-  const [enrollment, setEnrollment] = useState<any | null>(null);
+  const [course, setCourse] = useState<Course | null>(null);
+  const [modules, setModules] = useState<Module[]>([]);
+  const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
   const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (id) loadCourse();
-  }, [id, user]);
+  const totalLessons = modules.reduce((acc, m) => acc + m.lessons.length, 0);
+  const completedCount = modules.reduce(
+    (acc, m) => acc + m.lessons.filter((lesson) => completedLessons.has(lesson.id)).length,
+    0
+  );
+  const computedProgress = totalLessons > 0 ? (completedCount / totalLessons) * 100 : 0;
 
-  async function loadCourse() {
+  const loadCompletedLessons = useCallback(async () => {
+    if (!user || !id) return;
+
+    try {
+      if (user.email) {
+        const apiProgress = await fetchCourseProgressByEmail(user.email, id);
+        if (apiProgress.completed_lesson_ids.length > 0 || apiProgress.progress_percentage > 0) {
+          setCompletedLessons(new Set(apiProgress.completed_lesson_ids));
+          setEnrollment((prev) => {
+            if (!prev) return prev;
+            return { ...prev, progress_percentage: apiProgress.progress_percentage };
+          });
+          return;
+        }
+      }
+
+      const progressRes = await supabase.from("lesson_progress").select("lesson_id").eq("user_id", user.id);
+      setCompletedLessons(new Set(progressRes.data?.map((p) => p.lesson_id) || []));
+    } catch (err) {
+      console.error("Failed to load progress:", err);
+    }
+  }, [user, id]);
+
+  const loadCourse = useCallback(async () => {
     // Fetch course + modules + lessons from Express API
     const courseData = await fetchCourse(id!);
     if (courseData) {
-      setCourse(courseData);
-      setModules(courseData.modules || []);
+      setCourse(courseData as unknown as Course);
+      setModules((courseData.modules as unknown as Module[]) || []);
     }
 
-    // Enrollment & progress still via Supabase (user-specific data)
+    // Enrollment from cache or API
     if (user) {
-      const [enrollRes, progressRes] = await Promise.all([
-        supabase.from("enrollments").select("*").eq("user_id", user.id).eq("course_id", id!).maybeSingle(),
-        supabase.from("lesson_progress").select("lesson_id").eq("user_id", user.id),
-      ]);
-      setEnrollment(enrollRes.data);
-      setCompletedLessons(new Set(progressRes.data?.map((p) => p.lesson_id) || []));
+      // Check localStorage first for guest enrollments
+      const cacheKey = `enrollments_${user.email}`;
+      const cachedEnrollments = JSON.parse(localStorage.getItem(cacheKey) || "[]") as Enrollment[];
+      const cachedCourseEnrollment = cachedEnrollments.find((e) => e.course_id === id);
+      
+      if (cachedCourseEnrollment) {
+        setEnrollment(cachedCourseEnrollment);
+      } else {
+        // Fetch from API using email (works for all users)
+        try {
+          const enrollments = await fetchEnrollmentsByEmail(user.email!);
+          const courseEnrollment = enrollments.find((e) => (e as Enrollment).course_id === id) as Enrollment | undefined;
+          if (courseEnrollment) {
+            setEnrollment(courseEnrollment);
+            // Cache it
+            cachedEnrollments.push(courseEnrollment);
+            localStorage.setItem(cacheKey, JSON.stringify(cachedEnrollments));
+          }
+        } catch (err) {
+          console.debug("Could not fetch enrollments from API:", err);
+        }
+      }
+      
+      // Progress via Supabase (user-specific data)
+      await loadCompletedLessons();
     }
     setLoading(false);
-  }
+  }, [id, user, loadCompletedLessons]);
+
+  useEffect(() => {
+    if (id) loadCourse();
+  }, [id, loadCourse]);
+
+  // Reload completed lessons when page becomes visible (e.g., after navigating back from a lesson)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadCompletedLessons();
+      }
+    };
+
+    const handleFocus = () => {
+      loadCompletedLessons();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [loadCompletedLessons]);
 
   async function handleEnroll() {
     if (!user) { navigate("/login"); return; }
-    const { error } = await supabase.from("enrollments").insert({ user_id: user.id, course_id: id! });
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
+    try {
+      const enrollmentData = await enrollCourse(id!, user.email!);
+      
+      // Store enrollment in localStorage for offline access
+      const cacheKey = `enrollments_${user.email}`;
+      const cachedEnrollments = JSON.parse(localStorage.getItem(cacheKey) || "[]") as Enrollment[];
+      
+      // Convert camelCase from API to snake_case for consistency
+      const enrollmentWithCourseId: Enrollment = {
+        ...(enrollmentData as Enrollment),
+        course_id: id!,
+        progress_percentage: 0,
+      };
+      
+      // Avoid duplicates
+      const filtered = cachedEnrollments.filter((e) => e.course_id !== id);
+      filtered.push(enrollmentWithCourseId);
+      localStorage.setItem(cacheKey, JSON.stringify(filtered));
+      
+      // Update state immediately
+      setEnrollment(enrollmentWithCourseId);
+      
       toast({ title: "Enrolled!", description: "You've been enrolled in this course." });
-      loadCourse();
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to enroll", variant: "destructive" });
     }
   }
 
@@ -76,7 +195,7 @@ export default function CourseDetail() {
           {!enrollment ? (
             <Button variant="hero" size="lg" onClick={handleEnroll}>Enroll Now</Button>
           ) : (
-            <div className="text-sm text-primary font-mono">✓ Enrolled — {Math.round(enrollment.progress_percentage)}% complete</div>
+            <div className="text-sm text-primary font-mono">✓ Enrolled — {Math.round(computedProgress)}% complete</div>
           )}
         </motion.div>
 
@@ -105,7 +224,7 @@ export default function CourseDetail() {
                         ) : (
                           <div className="h-4 w-4 rounded-full border border-muted-foreground" />
                         )}
-                        <span className={completed ? "text-muted-foreground line-through" : "text-foreground"}>{lesson.title}</span>
+                        <span className={completed ? "text-muted-foreground line-through decoration-2 decoration-primary/60" : "text-foreground"}>{lesson.title}</span>
                       </div>
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <span className="text-xs font-mono">{lesson.estimated_minutes}m</span>

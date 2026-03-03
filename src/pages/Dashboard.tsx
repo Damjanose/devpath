@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchEnrollmentsByEmail } from "@/lib/api";
 import { Navbar } from "@/components/Navbar";
 import { XPBar } from "@/components/XPBar";
 import { CourseCard } from "@/components/CourseCard";
@@ -10,10 +12,45 @@ import { BookOpen, Trophy, Zap, Target } from "lucide-react";
 import { Footer } from "@/components/Footer";
 import type { Tables } from "@/integrations/supabase/types";
 
+type DashboardEnrollment = {
+  id: string;
+  course_id: string;
+  progress_percentage: number;
+  course: {
+    id: string;
+    title: string;
+    description?: string | null;
+    difficulty: string;
+    points_reward: number;
+  } | null;
+};
+
+function normalizeEnrollment(raw: Record<string, unknown>): DashboardEnrollment | null {
+  const course = (raw.course || raw.courses) as Record<string, unknown> | null;
+  if (!course) return null;
+
+  const id = String(raw.id || "");
+  const courseId = String(raw.course_id || course.id || "");
+  if (!id || !courseId) return null;
+
+  return {
+    id,
+    course_id: courseId,
+    progress_percentage: Number(raw.progress_percentage || 0),
+    course: {
+      id: String(course.id || courseId),
+      title: String(course.title || "Untitled course"),
+      description: (course.description as string | null | undefined) ?? null,
+      difficulty: String(course.difficulty || "beginner"),
+      points_reward: Number(course.points_reward || 0),
+    },
+  };
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<Tables<"profiles"> | null>(null);
-  const [enrollments, setEnrollments] = useState<(Tables<"enrollments"> & { courses: Tables<"courses"> | null })[]>([]);
+  const [enrollments, setEnrollments] = useState<DashboardEnrollment[]>([]);
   const [badges, setBadges] = useState<(Tables<"user_badges"> & { badges: Tables<"badges"> | null })[]>([]);
   const [stats, setStats] = useState({ lessonsCompleted: 0, coursesEnrolled: 0 });
 
@@ -23,18 +60,30 @@ export default function Dashboard() {
   }, [user]);
 
   async function loadDashboard() {
-    const [profileRes, enrollRes, badgeRes, progressRes] = await Promise.all([
+    const cacheKey = `enrollments_${user!.email}`;
+    const cachedEnrollments = (JSON.parse(localStorage.getItem(cacheKey) || "[]") as Record<string, unknown>[])
+      .map(normalizeEnrollment)
+      .filter((e): e is DashboardEnrollment => !!e);
+
+    const [profileRes, apiEnrollments, badgeRes, progressRes] = await Promise.all([
       supabase.from("profiles").select("*").eq("user_id", user!.id).maybeSingle(),
-      supabase.from("enrollments").select("*, courses(*)").eq("user_id", user!.id),
+      fetchEnrollmentsByEmail(user!.email || ""),
       supabase.from("user_badges").select("*, badges(*)").eq("user_id", user!.id),
       supabase.from("lesson_progress").select("id").eq("user_id", user!.id),
     ]);
+
+    const normalizedApiEnrollments = (apiEnrollments as Record<string, unknown>[])
+      .map(normalizeEnrollment)
+      .filter((e): e is DashboardEnrollment => !!e);
+
+    const finalEnrollments = normalizedApiEnrollments.length > 0 ? normalizedApiEnrollments : cachedEnrollments;
+
     setProfile(profileRes.data);
-    setEnrollments((enrollRes.data as any) || []);
+    setEnrollments(finalEnrollments);
     setBadges((badgeRes.data as any) || []);
     setStats({
       lessonsCompleted: progressRes.data?.length || 0,
-      coursesEnrolled: enrollRes.data?.length || 0,
+      coursesEnrolled: finalEnrollments.length,
     });
   }
 
@@ -79,17 +128,17 @@ export default function Dashboard() {
         <section className="space-y-4">
           <h2 className="text-xl font-semibold text-foreground">My Courses</h2>
           {enrollments.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No courses yet. <a href="/courses" className="text-primary hover:underline">Browse courses</a></p>
+            <p className="text-muted-foreground text-sm">No courses yet. <Link to="/courses" className="text-primary hover:underline">Browse courses</Link></p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {enrollments.map((e) => e.courses && (
+              {enrollments.map((e) => e.course && (
                 <CourseCard
                   key={e.id}
-                  id={e.courses.id}
-                  title={e.courses.title}
-                  description={e.courses.description}
-                  difficulty={e.courses.difficulty}
-                  pointsReward={e.courses.points_reward}
+                  id={e.course.id}
+                  title={e.course.title}
+                  description={e.course.description}
+                  difficulty={e.course.difficulty}
+                  pointsReward={e.course.points_reward}
                   progress={e.progress_percentage}
                 />
               ))}

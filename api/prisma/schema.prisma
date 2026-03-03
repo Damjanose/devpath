@@ -23,6 +23,8 @@ enum ContentType {
   text
   video
   quiz
+  code_example
+  coding_challenge
 }
 
 enum ConditionType {
@@ -128,6 +130,13 @@ model Lesson {
   pointsReward     Int         @default(10) @map("points_reward")
   sortOrder        Int         @default(0) @map("sort_order")
   estimatedMinutes Int         @default(5) @map("estimated_minutes")
+  // Coding challenge fields
+  starterCode      String?     @map("starter_code")
+  testCode         String?     @map("test_code")
+  solutionCode     String?     @map("solution_code")
+  bonusPoints      Int         @default(0) @map("bonus_points")
+  hints            String[]    @default([])
+  language         String?     // e.g. typescript, javascript, python, csharp, sql, bash
   createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz
   updatedAt        DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -157,11 +166,16 @@ model Enrollment {
 }
 
 model LessonProgress {
-  id           String   @id @default(uuid()) @db.Uuid
-  userId       String   @map("user_id") @db.Uuid
-  lessonId     String   @map("lesson_id") @db.Uuid
-  completedAt  DateTime @default(now()) @map("completed_at") @db.Timestamptz
-  pointsEarned Int      @default(0) @map("points_earned")
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  lessonId      String   @map("lesson_id") @db.Uuid
+  completedAt   DateTime @default(now()) @map("completed_at") @db.Timestamptz
+  pointsEarned  Int      @default(0) @map("points_earned")
+  // Coding challenge tracking
+  submittedCode String?  @map("submitted_code")
+  testsPassed   Int?     @map("tests_passed")
+  testsTotal    Int?     @map("tests_total")
+  hintsUsed     Int      @default(0) @map("hints_used")
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)

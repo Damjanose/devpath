@@ -1,25 +1,67 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, isValidElement, type ReactElement, type ReactNode } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchLesson } from "@/lib/api";
+import { fetchLesson, fetchCourse, fetchCourseProgressByEmail, completeLessonByEmail } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { CheckCircle2, ArrowLeft, Zap } from "lucide-react";
+import { CheckCircle2, ArrowLeft, ArrowRight, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
+
+interface Lesson {
+  id: string;
+  title: string;
+  module_id: string;
+  points_reward: number;
+  sort_order: number;
+  content?: string;
+  module?: {
+    id: string;
+    title: string;
+    course_id: string;
+  };
+}
+
+function getCodeLanguage(child: ReactElement<{ className?: string }>) {
+  const className = child.props.className || "";
+  const match = /language-([\w-]+)/.exec(className);
+  return match?.[1]?.toUpperCase() ?? "CODE";
+}
+
+function renderCodeBlock(children: ReactNode) {
+  const firstChild = Array.isArray(children) ? children[0] : children;
+  if (!isValidElement(firstChild)) {
+    return <pre>{children}</pre>;
+  }
+
+  const codeChild = firstChild as ReactElement<{ className?: string; children?: ReactNode }>;
+  const language = getCodeLanguage(codeChild);
+
+  return (
+    <div className="not-prose my-5 overflow-hidden rounded-lg border border-border bg-secondary/30">
+      <div className="flex items-center justify-between border-b border-border bg-secondary/50 px-4 py-2 text-xs font-mono text-muted-foreground">
+        <span>{language}</span>
+      </div>
+      <pre className="overflow-x-auto p-4 text-sm leading-6">
+        <code className={codeChild.props.className}>{codeChild.props.children}</code>
+      </pre>
+    </div>
+  );
+}
 
 export default function LessonViewer() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [lesson, setLesson] = useState<any | null>(null);
+  const [lesson, setLesson] = useState<Lesson | null>(null);
   const [completed, setCompleted] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const [nextLessonId, setNextLessonId] = useState<string | null>(null);
 
   useEffect(() => {
     if (id && user) loadLesson();
@@ -30,47 +72,116 @@ export default function LessonViewer() {
       fetchLesson(id!),
       supabase.from("lesson_progress").select("id").eq("user_id", user!.id).eq("lesson_id", id!).maybeSingle(),
     ]);
-    setLesson(lessonData);
+    const lessonRecord = lessonData as unknown as Lesson;
+    setLesson(lessonRecord);
     setCompleted(!!progressRes.data);
+
+    if (user?.email && lessonRecord?.module?.course_id) {
+      const apiProgress = await fetchCourseProgressByEmail(user.email, lessonRecord.module.course_id);
+      if (apiProgress.completed_lesson_ids.includes(lessonRecord.id)) {
+        setCompleted(true);
+      }
+    }
+
+    // Fetch course to find next lesson
+    if (lessonRecord) {
+      const courseData = await fetchCourse(lessonRecord.module?.course_id || "");
+      if (courseData) {
+        findNextLesson(courseData, lessonRecord);
+      }
+    }
+  }
+
+  function findNextLesson(courseData: any, currentLesson: Lesson) {
+    const modules = courseData.modules || [];
+    
+    // Flatten all lessons with their order
+    const allLessons: Array<{ id: string; moduleOrder: number; lessonOrder: number }> = [];
+    modules.forEach((mod: any, modIndex: number) => {
+      mod.lessons?.forEach((les: any) => {
+        allLessons.push({
+          id: les.id,
+          moduleOrder: modIndex,
+          lessonOrder: les.sort_order || 0,
+        });
+      });
+    });
+
+    // Sort by module order, then lesson order
+    allLessons.sort((a, b) => {
+      if (a.moduleOrder !== b.moduleOrder) return a.moduleOrder - b.moduleOrder;
+      return a.lessonOrder - b.lessonOrder;
+    });
+
+    // Find current lesson index
+    const currentIndex = allLessons.findIndex((l) => l.id === currentLesson.id);
+    if (currentIndex >= 0 && currentIndex < allLessons.length - 1) {
+      setNextLessonId(allLessons[currentIndex + 1].id);
+    }
   }
 
   async function handleComplete() {
     if (!user || !lesson || completed) return;
     setCompleting(true);
     try {
-      // Insert lesson progress
-      await supabase.from("lesson_progress").insert({
+      if (user.email) {
+        try {
+          const apiResult = await completeLessonByEmail(lesson.id, user.email);
+          if (apiResult) {
+            setCompleted(true);
+            const alreadyCompleted = !!apiResult.already_completed;
+            const pointsEarned = Number(apiResult.points_earned || lesson.points_reward);
+            toast({
+              title: alreadyCompleted ? "Already completed" : `+${pointsEarned} XP!`,
+              description: alreadyCompleted ? "This lesson was already completed." : "Lesson completed!",
+            });
+            return;
+          }
+        } catch (apiErr) {
+          console.debug("API completion failed, trying Supabase fallback:", apiErr);
+        }
+      }
+
+      const { error: progressInsertError } = await supabase.from("lesson_progress").insert({
         user_id: user.id,
         lesson_id: lesson.id,
         points_earned: lesson.points_reward,
       });
+      if (progressInsertError) throw progressInsertError;
 
-      // Update user points
       const { data: profile } = await supabase.from("profiles").select("total_points, level").eq("user_id", user.id).maybeSingle();
       if (profile) {
         const newPoints = profile.total_points + lesson.points_reward;
         const newLevel = Math.floor(newPoints / 500) + 1;
-        await supabase.from("profiles").update({ total_points: newPoints, level: newLevel }).eq("user_id", user.id);
+        const { error: profileUpdateError } = await supabase
+          .from("profiles")
+          .update({ total_points: newPoints, level: newLevel })
+          .eq("user_id", user.id);
+        if (profileUpdateError) throw profileUpdateError;
       }
 
-      // Recalculate course progress
-      const { data: mod } = await supabase.from("modules").select("course_id").eq("id", lesson.module_id).maybeSingle();
-      if (mod) {
-        const { data: allLessons } = await supabase.from("lessons").select("id").eq("module_id", lesson.module_id);
-        const courseModules = await supabase.from("modules").select("id").eq("course_id", mod.course_id);
-        const allModuleIds = courseModules.data?.map(m => m.id) || [];
-        
+      const courseId = lesson.module?.course_id;
+      if (courseId) {
+        const courseModules = await supabase.from("modules").select("id").eq("course_id", courseId);
+        const allModuleIds = courseModules.data?.map((moduleRow) => moduleRow.id) || [];
+
         const { data: courseLessons } = await supabase.from("lessons").select("id").in("module_id", allModuleIds);
         const { data: completedLessons } = await supabase.from("lesson_progress").select("lesson_id").eq("user_id", user.id);
-        
+
         const totalLessons = courseLessons?.length || 1;
-        const completedInCourse = completedLessons?.filter(cl => courseLessons?.some(l => l.id === cl.lesson_id)).length || 0;
+        const completedInCourse = completedLessons?.filter((completedLesson) => courseLessons?.some((courseLesson) => courseLesson.id === completedLesson.lesson_id)).length || 0;
         const progress = (completedInCourse / totalLessons) * 100;
 
-        await supabase.from("enrollments").update({ 
-          progress_percentage: progress,
-          completed_at: progress >= 100 ? new Date().toISOString() : null 
-        }).eq("user_id", user.id).eq("course_id", mod.course_id);
+        const { error: enrollmentUpdateError } = await supabase
+          .from("enrollments")
+          .update({
+            progress_percentage: progress,
+            completed_at: progress >= 100 ? new Date().toISOString() : null,
+          })
+          .eq("user_id", user.id)
+          .eq("course_id", courseId);
+
+        if (enrollmentUpdateError) throw enrollmentUpdateError;
       }
 
       setCompleted(true);
@@ -79,6 +190,19 @@ export default function LessonViewer() {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
       setCompleting(false);
+    }
+  }
+
+  function handleNextLesson() {
+    if (nextLessonId) {
+      navigate(`/lessons/${nextLessonId}`);
+    } else {
+      // Go back to course if no next lesson
+      if (lesson?.module?.course_id) {
+        navigate(`/courses/${lesson.module.course_id}`);
+      } else {
+        navigate(-1);
+      }
     }
   }
 
@@ -99,20 +223,39 @@ export default function LessonViewer() {
           </div>
 
           <div className="rounded-lg border border-border bg-card p-6">
-            <div className="prose prose-invert prose-green max-w-none prose-headings:text-foreground prose-p:text-foreground/90 prose-strong:text-foreground prose-code:text-primary prose-code:bg-secondary prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-[#0d1117] prose-pre:border prose-pre:border-border prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-li:text-foreground/90 prose-th:text-foreground prose-td:text-foreground/90 prose-hr:border-border">
+            <div className="prose prose-invert prose-green max-w-none prose-headings:text-foreground prose-p:text-foreground/90 prose-strong:text-foreground prose-code:text-primary prose-code:bg-secondary prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-li:text-foreground/90 prose-th:text-foreground prose-td:text-foreground/90 prose-hr:border-border">
               {lesson.content ? (
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{lesson.content}</ReactMarkdown>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeHighlight]}
+                  components={{
+                    pre: ({ children }) => renderCodeBlock(children),
+                  }}
+                >
+                  {lesson.content}
+                </ReactMarkdown>
               ) : (
                 <p className="text-muted-foreground">No content available yet.</p>
               )}
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-3">
             {completed ? (
-              <div className="flex items-center gap-2 text-primary font-mono">
-                <CheckCircle2 className="h-5 w-5" /> Completed
-              </div>
+              <>
+                <div className="flex items-center gap-2 text-primary font-mono">
+                  <CheckCircle2 className="h-5 w-5" /> Completed
+                </div>
+                <Button variant="hero" onClick={handleNextLesson}>
+                  {nextLessonId ? (
+                    <>
+                      Next Lesson <ArrowRight className="h-4 w-4 ml-1" />
+                    </>
+                  ) : (
+                    "Back to Course"
+                  )}
+                </Button>
+              </>
             ) : (
               <Button variant="hero" onClick={handleComplete} disabled={completing}>
                 {completing ? "Completing..." : "Mark as Complete"}

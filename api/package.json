@@ -10,6 +10,7 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
+    "db:clear": "tsx clear-enrollments.ts",
     "db:studio": "prisma studio"
   },
   "dependencies": {
@@ -32,6 +33,7 @@
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^22.16.5",
     "prisma": "^6.5.0",
+    "ts-node": "^10.9.2",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   },
