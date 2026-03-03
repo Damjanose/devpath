@@ -1,4 +1,6 @@
 // API helper for Express backend
+import { supabase } from "@/integrations/supabase/client";
+
 const API_BASE = "/api";
 
 export interface ApiCourse {
@@ -67,9 +69,30 @@ export async function fetchCourses(): Promise<Record<string, unknown>[]> {
 
 export async function fetchCourse(id: string): Promise<Record<string, unknown> | null> {
   const res = await fetch(`${API_BASE}/courses/${id}`);
-  if (!res.ok) return null;
-  const json = await res.json();
-  return toSnakeCase(json.data) as Record<string, unknown>;
+  if (res.ok) {
+    const json = await res.json();
+    return toSnakeCase(json.data) as Record<string, unknown>;
+  }
+
+  const { data } = await supabase
+    .from("courses")
+    .select("*, modules(*, lessons(*))")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!data) return null;
+
+  const normalizedModules = (data.modules || []).map((module) => ({
+    ...module,
+    lessons: [...(module.lessons || [])].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)),
+  }));
+
+  normalizedModules.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+
+  return {
+    ...data,
+    modules: normalizedModules,
+  } as unknown as Record<string, unknown>;
 }
 
 export async function fetchLesson(id: string): Promise<Record<string, unknown> | null> {
