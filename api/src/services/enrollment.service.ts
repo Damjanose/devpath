@@ -20,6 +20,43 @@ export const enrollmentService = {
     });
   },
 
+  async enrollGuest(courseId: string, email: string) {
+    // Check course exists and is published
+    const course = await prisma.course.findUnique({ where: { id: courseId } });
+    if (!course) throw ApiError.notFound("Course not found");
+    if (!course.isPublished) throw ApiError.badRequest("Course is not available");
+
+    // Try to find or create user by email
+    let user = await prisma.user.findUnique({ where: { email } });
+    
+    if (!user) {
+      // Create a user with a random password for guest enrollments
+      const randomPassword = Math.random().toString(36).slice(-12);
+      const bcrypt = require("bcryptjs");
+      const passwordHash = await bcrypt.hash(randomPassword, 12);
+      
+      user = await prisma.user.create({
+        data: {
+          email,
+          passwordHash,
+          profile: { create: { displayName: email.split("@")[0], totalPoints: 0, level: 1 } },
+          roles: { create: { role: "user" } },
+        },
+      });
+    }
+
+    // Check if already enrolled
+    const existing = await prisma.enrollment.findUnique({
+      where: { userId_courseId: { userId: user.id, courseId } },
+    });
+    if (existing) throw ApiError.conflict("Already enrolled in this course");
+
+    return prisma.enrollment.create({
+      data: { userId: user.id, courseId },
+      include: { course: true },
+    });
+  },
+
   async getUserEnrollments(userId: string) {
     return prisma.enrollment.findMany({
       where: { userId },

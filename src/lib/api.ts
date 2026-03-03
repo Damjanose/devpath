@@ -78,3 +78,29 @@ export async function fetchLesson(id: string): Promise<Record<string, unknown> |
   const json = await res.json();
   return toSnakeCase(json.data) as Record<string, unknown>;
 }
+
+export async function enrollCourse(courseId: string, email: string): Promise<Record<string, unknown> | null> {
+  const res = await fetch(`${API_BASE}/enrollments/guest`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ courseId, email }),
+  });
+  if (!res.ok) {
+    const json = await res.json();
+    throw new Error(json.message || "Failed to enroll");
+  }
+  const json = await res.json();
+  return toSnakeCase(json.data) as Record<string, unknown>;
+}
+
+export async function fetchMyEnrollments(): Promise<Record<string, unknown>[]> {
+  const res = await fetch(`${API_BASE}/enrollments/my`, {
+    credentials: "include",
+  });
+  if (!res.ok) return [];
+  const json = await res.json();
+  const enrollments = json.data || [];
+  return enrollments.map(toSnakeCase) as Record<string, unknown>[];
+}

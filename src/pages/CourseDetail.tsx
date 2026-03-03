@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchCourse } from "@/lib/api";
+import { fetchCourse, enrollCourse, fetchMyEnrollments } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
@@ -34,26 +34,35 @@ export default function CourseDetail() {
       setModules(courseData.modules || []);
     }
 
-    // Enrollment & progress still via Supabase (user-specific data)
+    // Enrollment from Express API
     if (user) {
-      const [enrollRes, progressRes] = await Promise.all([
-        supabase.from("enrollments").select("*").eq("user_id", user.id).eq("course_id", id!).maybeSingle(),
-        supabase.from("lesson_progress").select("lesson_id").eq("user_id", user.id),
-      ]);
-      setEnrollment(enrollRes.data);
-      setCompletedLessons(new Set(progressRes.data?.map((p) => p.lesson_id) || []));
+      try {
+        const enrollments = await fetchMyEnrollments();
+        const courseEnrollment = enrollments.find((e: any) => e.course_id === id);
+        setEnrollment(courseEnrollment || null);
+      } catch (err) {
+        console.error("Failed to load enrollment:", err);
+      }
+      
+      // Progress via Supabase (user-specific data)
+      try {
+        const progressRes = await supabase.from("lesson_progress").select("lesson_id").eq("user_id", user.id);
+        setCompletedLessons(new Set(progressRes.data?.map((p) => p.lesson_id) || []));
+      } catch (err) {
+        console.error("Failed to load progress:", err);
+      }
     }
     setLoading(false);
   }
 
   async function handleEnroll() {
     if (!user) { navigate("/login"); return; }
-    const { error } = await supabase.from("enrollments").insert({ user_id: user.id, course_id: id! });
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
+    try {
+      await enrollCourse(id!, user.email!);
       toast({ title: "Enrolled!", description: "You've been enrolled in this course." });
       loadCourse();
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to enroll", variant: "destructive" });
     }
   }
 
