@@ -7,6 +7,7 @@ import { CourseCard } from "@/components/CourseCard";
 import { BadgeCard } from "@/components/BadgeCard";
 import { motion } from "framer-motion";
 import { BookOpen, Trophy, Zap, Target } from "lucide-react";
+import { Footer } from "@/components/Footer";
 import type { Tables } from "@/integrations/supabase/types";
 
 export default function Dashboard() {
@@ -42,7 +43,7 @@ export default function Dashboard() {
   const xpForNextLevel = level * 500;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
       <main className="container py-8 space-y-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
@@ -109,6 +110,7 @@ export default function Dashboard() {
           )}
         </section>
       </main>
+      <Footer />
     </div>
   );
 }

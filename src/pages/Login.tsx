@@ -37,7 +37,7 @@ export default function Login() {
             <span className="text-2xl font-bold">Dev<span className="text-primary">Path</span></span>
           </Link>
           <h1 className="text-2xl font-bold text-foreground">Welcome back</h1>
-          <p className="text-sm text-muted-foreground">Enter your credentials to continue</p>
+          <p className="text-sm text-muted-foreground">Log in to continue your learning journey</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -50,7 +50,7 @@ export default function Login() {
             <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" className="bg-secondary border-border" />
           </div>
           <Button type="submit" className="w-full" variant="hero" disabled={loading}>
-            {loading ? "Signing in..." : "Sign In"}
+            {loading ? "Signing in..." : "Log In"}
           </Button>
         </form>
 

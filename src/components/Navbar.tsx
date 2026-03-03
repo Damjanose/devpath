@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Code2, LogOut, LayoutDashboard, Shield, Trophy } from "lucide-react";
@@ -6,11 +6,16 @@ import { Code2, LogOut, LayoutDashboard, Shield, Trophy } from "lucide-react";
 export function Navbar() {
   const { user, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSignOut = async () => {
     await signOut();
     navigate("/");
   };
+
+  // Helper: if on homepage, use anchor; otherwise link to /#anchor
+  const sectionHref = (anchor: string) =>
+    location.pathname === "/" ? `#${anchor}` : `/#${anchor}`;
 
   return (
     <nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
@@ -26,6 +31,20 @@ export function Navbar() {
           <Link to="/courses">
             <Button variant="ghost" size="sm">Courses</Button>
           </Link>
+
+          {!user && (
+            <>
+              <a href={sectionHref("features")}>
+                <Button variant="ghost" size="sm">Features</Button>
+              </a>
+              <a href={sectionHref("how-it-works")}>
+                <Button variant="ghost" size="sm">How It Works</Button>
+              </a>
+              <a href={sectionHref("stats")}>
+                <Button variant="ghost" size="sm">Community</Button>
+              </a>
+            </>
+          )}
 
           {user ? (
             <>
@@ -46,8 +65,8 @@ export function Navbar() {
             </>
           ) : (
             <>
-              <Link to="/login"><Button variant="ghost" size="sm">Login</Button></Link>
-              <Link to="/register"><Button variant="hero" size="sm">Sign Up</Button></Link>
+              <Link to="/login"><Button variant="ghost" size="sm">Log In</Button></Link>
+              <Link to="/register"><Button variant="hero" size="sm">Start Learning</Button></Link>
             </>
           )}
         </div>

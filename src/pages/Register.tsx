@@ -43,7 +43,7 @@ export default function Register() {
             <span className="text-2xl font-bold">Dev<span className="text-primary">Path</span></span>
           </Link>
           <h1 className="text-2xl font-bold text-foreground">Create account</h1>
-          <p className="text-sm text-muted-foreground">Start your developer journey</p>
+          <p className="text-sm text-muted-foreground">Start your developer journey — it's free</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
