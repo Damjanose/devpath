@@ -150,10 +150,10 @@ export default function Index() {
             >
               {/* +500 XP floating badge */}
               <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0, scale: 0.8, rotate: 0 }}
+                animate={{ opacity: 1, scale: 1, rotate: 16 }}
                 transition={{ delay: 0.9, type: "spring" }}
-                className="absolute -top-3 -right-3 z-10 rotate-[16deg] rounded-full bg-primary px-4 py-1.5 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/30"
+                className="absolute -top-3 -right-3 z-10 rounded-full bg-primary px-4 py-1.5 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/30"
               >
                 +500 XP
               </motion.div>
