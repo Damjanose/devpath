@@ -48,6 +48,19 @@ export const lessonController = {
     }
   },
 
+  async completeByEmail(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { email } = req.body;
+      if (!email || typeof email !== "string") {
+        return res.status(400).json({ status: "error", message: "Email is required" });
+      }
+      const result = await lessonService.completeByEmail(req.params.id as string, email);
+      res.json({ status: "success", data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async reorder(req: Request, res: Response, next: NextFunction) {
     try {
       await lessonService.reorder(req.params.moduleId as string, req.body.lessonIds);

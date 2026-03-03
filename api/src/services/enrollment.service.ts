@@ -118,4 +118,13 @@ export const enrollmentService = {
       completedLessonIds: completedLessonIds.map((cl) => cl.lessonId),
     };
   },
+
+  async getUserProgressByEmail(email: string, courseId: string) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return { enrollment: null, completedLessonIds: [] as string[] };
+    }
+
+    return this.getUserProgress(user.id, courseId);
+  },
 };

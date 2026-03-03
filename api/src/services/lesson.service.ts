@@ -219,6 +219,12 @@ export const lessonService = {
     return result;
   },
 
+  async completeByEmail(lessonId: string, email: string) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) throw ApiError.notFound("User not found");
+    return this.complete(lessonId, user.id);
+  },
+
   async reorder(moduleId: string, lessonIds: string[]) {
     const updates = lessonIds.map((id, index) =>
       prisma.lesson.update({

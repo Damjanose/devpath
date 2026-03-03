@@ -97,9 +97,19 @@ export async function fetchCourse(id: string): Promise<Record<string, unknown> |
 
 export async function fetchLesson(id: string): Promise<Record<string, unknown> | null> {
   const res = await fetch(`${API_BASE}/lessons/${id}`);
-  if (!res.ok) return null;
-  const json = await res.json();
-  return toSnakeCase(json.data) as Record<string, unknown>;
+  if (res.ok) {
+    const json = await res.json();
+    return toSnakeCase(json.data) as Record<string, unknown>;
+  }
+
+  const { data } = await supabase
+    .from("lessons")
+    .select("*, module:modules(id, title, course_id)")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!data) return null;
+  return data as unknown as Record<string, unknown>;
 }
 
 export async function enrollCourse(courseId: string, email: string): Promise<Record<string, unknown> | null> {
@@ -134,4 +144,39 @@ export async function fetchEnrollmentsByEmail(email: string): Promise<Record<str
   const json = await res.json();
   const enrollments = json.data || [];
   return enrollments.map(toSnakeCase) as Record<string, unknown>[];
+}
+
+export async function fetchCourseProgressByEmail(email: string, courseId: string): Promise<{ completed_lesson_ids: string[]; progress_percentage: number }> {
+  const res = await fetch(`${API_BASE}/enrollments/progress-by-email?email=${encodeURIComponent(email)}&courseId=${encodeURIComponent(courseId)}`);
+  if (!res.ok) {
+    return { completed_lesson_ids: [], progress_percentage: 0 };
+  }
+
+  const json = await res.json();
+  const data = toSnakeCase(json.data || {}) as Record<string, unknown>;
+  const completedLessonIds = (data.completed_lesson_ids as string[] | undefined) || [];
+  const enrollment = (data.enrollment as Record<string, unknown> | undefined) || {};
+  const progressPercentage = Number(enrollment.progress_percentage || 0);
+
+  return {
+    completed_lesson_ids: completedLessonIds,
+    progress_percentage: progressPercentage,
+  };
+}
+
+export async function completeLessonByEmail(lessonId: string, email: string): Promise<Record<string, unknown> | null> {
+  const res = await fetch(`${API_BASE}/lessons/${lessonId}/complete-by-email`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!res.ok) {
+    if (res.status === 404) return null;
+    const json = await res.json().catch(() => ({}));
+    throw new Error(json.message || "Failed to complete lesson");
+  }
+
+  const json = await res.json();
+  return toSnakeCase(json.data) as Record<string, unknown>;
 }

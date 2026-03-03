@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchCourse, enrollCourse, fetchEnrollmentsByEmail } from "@/lib/api";
+import { fetchCourse, enrollCourse, fetchEnrollmentsByEmail, fetchCourseProgressByEmail } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
@@ -52,15 +52,35 @@ export default function CourseDetail() {
   const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
+  const totalLessons = modules.reduce((acc, m) => acc + m.lessons.length, 0);
+  const completedCount = modules.reduce(
+    (acc, m) => acc + m.lessons.filter((lesson) => completedLessons.has(lesson.id)).length,
+    0
+  );
+  const computedProgress = totalLessons > 0 ? (completedCount / totalLessons) * 100 : 0;
+
   const loadCompletedLessons = useCallback(async () => {
-    if (!user) return;
+    if (!user || !id) return;
+
     try {
+      if (user.email) {
+        const apiProgress = await fetchCourseProgressByEmail(user.email, id);
+        if (apiProgress.completed_lesson_ids.length > 0 || apiProgress.progress_percentage > 0) {
+          setCompletedLessons(new Set(apiProgress.completed_lesson_ids));
+          setEnrollment((prev) => {
+            if (!prev) return prev;
+            return { ...prev, progress_percentage: apiProgress.progress_percentage };
+          });
+          return;
+        }
+      }
+
       const progressRes = await supabase.from("lesson_progress").select("lesson_id").eq("user_id", user.id);
       setCompletedLessons(new Set(progressRes.data?.map((p) => p.lesson_id) || []));
     } catch (err) {
       console.error("Failed to load progress:", err);
     }
-  }, [user]);
+  }, [user, id]);
 
   const loadCourse = useCallback(async () => {
     // Fetch course + modules + lessons from Express API
@@ -175,7 +195,7 @@ export default function CourseDetail() {
           {!enrollment ? (
             <Button variant="hero" size="lg" onClick={handleEnroll}>Enroll Now</Button>
           ) : (
-            <div className="text-sm text-primary font-mono">✓ Enrolled — {Math.round(enrollment.progress_percentage || 0)}% complete</div>
+            <div className="text-sm text-primary font-mono">✓ Enrolled — {Math.round(computedProgress)}% complete</div>
           )}
         </motion.div>
 
@@ -204,7 +224,7 @@ export default function CourseDetail() {
                         ) : (
                           <div className="h-4 w-4 rounded-full border border-muted-foreground" />
                         )}
-                        <span className={completed ? "text-muted-foreground line-through" : "text-foreground"}>{lesson.title}</span>
+                        <span className={completed ? "text-muted-foreground line-through decoration-2 decoration-primary/60" : "text-foreground"}>{lesson.title}</span>
                       </div>
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <span className="text-xs font-mono">{lesson.estimated_minutes}m</span>

@@ -30,6 +30,7 @@ const reorderSchema = z.object({ lessonIds: z.array(z.string().uuid()) });
 
 // Public
 router.get("/:id", lessonController.getById);
+router.post("/:id/complete-by-email", lessonController.completeByEmail);
 
 // Authenticated user
 router.post("/:id/complete", authenticate, lessonController.complete);

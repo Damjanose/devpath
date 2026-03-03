@@ -52,4 +52,21 @@ export const enrollmentController = {
       next(err);
     }
   },
+
+  async getProgressByEmail(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { email, courseId } = req.query;
+      if (!email || typeof email !== "string") {
+        return res.status(400).json({ status: "error", message: "Email is required" });
+      }
+      if (!courseId || typeof courseId !== "string") {
+        return res.status(400).json({ status: "error", message: "Course ID is required" });
+      }
+
+      const progress = await enrollmentService.getUserProgressByEmail(email, courseId);
+      res.json({ status: "success", data: progress });
+    } catch (err) {
+      next(err);
+    }
+  },
 };

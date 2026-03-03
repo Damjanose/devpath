@@ -1,7 +1,7 @@
 import { useEffect, useState, isValidElement, type ReactElement, type ReactNode } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchLesson, fetchCourse } from "@/lib/api";
+import { fetchLesson, fetchCourse, fetchCourseProgressByEmail, completeLessonByEmail } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
@@ -72,14 +72,22 @@ export default function LessonViewer() {
       fetchLesson(id!),
       supabase.from("lesson_progress").select("id").eq("user_id", user!.id).eq("lesson_id", id!).maybeSingle(),
     ]);
-    setLesson(lessonData as Lesson);
+    const lessonRecord = lessonData as unknown as Lesson;
+    setLesson(lessonRecord);
     setCompleted(!!progressRes.data);
 
+    if (user?.email && lessonRecord?.module?.course_id) {
+      const apiProgress = await fetchCourseProgressByEmail(user.email, lessonRecord.module.course_id);
+      if (apiProgress.completed_lesson_ids.includes(lessonRecord.id)) {
+        setCompleted(true);
+      }
+    }
+
     // Fetch course to find next lesson
-    if (lessonData) {
-      const courseData = await fetchCourse((lessonData as Lesson).module?.course_id || "");
+    if (lessonRecord) {
+      const courseData = await fetchCourse(lessonRecord.module?.course_id || "");
       if (courseData) {
-        findNextLesson(courseData, lessonData as Lesson);
+        findNextLesson(courseData, lessonRecord);
       }
     }
   }
@@ -116,38 +124,64 @@ export default function LessonViewer() {
     if (!user || !lesson || completed) return;
     setCompleting(true);
     try {
-      // Insert lesson progress
-      await supabase.from("lesson_progress").insert({
+      if (user.email) {
+        try {
+          const apiResult = await completeLessonByEmail(lesson.id, user.email);
+          if (apiResult) {
+            setCompleted(true);
+            const alreadyCompleted = !!apiResult.already_completed;
+            const pointsEarned = Number(apiResult.points_earned || lesson.points_reward);
+            toast({
+              title: alreadyCompleted ? "Already completed" : `+${pointsEarned} XP!`,
+              description: alreadyCompleted ? "This lesson was already completed." : "Lesson completed!",
+            });
+            return;
+          }
+        } catch (apiErr) {
+          console.debug("API completion failed, trying Supabase fallback:", apiErr);
+        }
+      }
+
+      const { error: progressInsertError } = await supabase.from("lesson_progress").insert({
         user_id: user.id,
         lesson_id: lesson.id,
         points_earned: lesson.points_reward,
       });
+      if (progressInsertError) throw progressInsertError;
 
-      // Update user points
       const { data: profile } = await supabase.from("profiles").select("total_points, level").eq("user_id", user.id).maybeSingle();
       if (profile) {
         const newPoints = profile.total_points + lesson.points_reward;
         const newLevel = Math.floor(newPoints / 500) + 1;
-        await supabase.from("profiles").update({ total_points: newPoints, level: newLevel }).eq("user_id", user.id);
+        const { error: profileUpdateError } = await supabase
+          .from("profiles")
+          .update({ total_points: newPoints, level: newLevel })
+          .eq("user_id", user.id);
+        if (profileUpdateError) throw profileUpdateError;
       }
 
-      // Recalculate course progress
       const courseId = lesson.module?.course_id;
       if (courseId) {
         const courseModules = await supabase.from("modules").select("id").eq("course_id", courseId);
-        const allModuleIds = courseModules.data?.map(m => m.id) || [];
-        
+        const allModuleIds = courseModules.data?.map((moduleRow) => moduleRow.id) || [];
+
         const { data: courseLessons } = await supabase.from("lessons").select("id").in("module_id", allModuleIds);
         const { data: completedLessons } = await supabase.from("lesson_progress").select("lesson_id").eq("user_id", user.id);
-        
+
         const totalLessons = courseLessons?.length || 1;
-        const completedInCourse = completedLessons?.filter(cl => courseLessons?.some(l => l.id === cl.lesson_id)).length || 0;
+        const completedInCourse = completedLessons?.filter((completedLesson) => courseLessons?.some((courseLesson) => courseLesson.id === completedLesson.lesson_id)).length || 0;
         const progress = (completedInCourse / totalLessons) * 100;
 
-        await supabase.from("enrollments").update({ 
-          progress_percentage: progress,
-          completed_at: progress >= 100 ? new Date().toISOString() : null 
-        }).eq("user_id", user.id).eq("course_id", courseId);
+        const { error: enrollmentUpdateError } = await supabase
+          .from("enrollments")
+          .update({
+            progress_percentage: progress,
+            completed_at: progress >= 100 ? new Date().toISOString() : null,
+          })
+          .eq("user_id", user.id)
+          .eq("course_id", courseId);
+
+        if (enrollmentUpdateError) throw enrollmentUpdateError;
       }
 
       setCompleted(true);
