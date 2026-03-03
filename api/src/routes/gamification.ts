@@ -19,6 +19,7 @@ const createBadgeSchema = z.object({
 const updateBadgeSchema = createBadgeSchema.partial();
 
 // Public
+router.get("/platform-stats", gamificationController.getPlatformStats);
 router.get("/leaderboard", gamificationController.getLeaderboard);
 
 // Authenticated

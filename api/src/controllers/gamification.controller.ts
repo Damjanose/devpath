@@ -3,6 +3,16 @@ import { gamificationService } from "../services/gamification.service";
 import { AuthRequest } from "../types";
 
 export const gamificationController = {
+  // Platform-wide stats (public)
+  async getPlatformStats(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const stats = await gamificationService.getPlatformStats();
+      res.json({ status: "success", data: stats });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   // Badge CRUD (admin)
   async listBadges(_req: Request, res: Response, next: NextFunction) {
     try {

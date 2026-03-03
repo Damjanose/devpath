@@ -21,6 +21,24 @@ interface UpdateBadgeData {
 }
 
 export const gamificationService = {
+  // Platform-wide stats (public)
+  async getPlatformStats() {
+    const [activeLearnersCount, coursesCount, badgesEarnedCount, lessonsCompletedCount] =
+      await Promise.all([
+        prisma.profile.count(),
+        prisma.course.count({ where: { isPublished: true } }),
+        prisma.userBadge.count(),
+        prisma.lessonProgress.count(),
+      ]);
+
+    return {
+      activeLearners: activeLearnersCount,
+      coursesAvailable: coursesCount,
+      badgesEarned: badgesEarnedCount,
+      lessonsCompleted: lessonsCompletedCount,
+    };
+  },
+
   // Badge CRUD
   async listBadges() {
     return prisma.badge.findMany({
