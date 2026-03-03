@@ -104,3 +104,11 @@ export async function fetchMyEnrollments(): Promise<Record<string, unknown>[]> {
   const enrollments = json.data || [];
   return enrollments.map(toSnakeCase) as Record<string, unknown>[];
 }
+
+export async function fetchEnrollmentsByEmail(email: string): Promise<Record<string, unknown>[]> {
+  const res = await fetch(`${API_BASE}/enrollments/by-email?email=${encodeURIComponent(email)}`);
+  if (!res.ok) return [];
+  const json = await res.json();
+  const enrollments = json.data || [];
+  return enrollments.map(toSnakeCase) as Record<string, unknown>[];
+}

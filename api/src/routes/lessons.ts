@@ -11,7 +11,7 @@ const createLessonSchema = z.object({
   moduleId: z.string().uuid(),
   title: z.string().min(1, "Title is required"),
   content: z.string().optional(),
-  contentType: z.enum(["text", "video", "quiz"]).optional(),
+  contentType: z.enum(["text", "video", "quiz", "code_example", "coding_challenge"]).optional(),
   pointsReward: z.number().int().min(0).optional(),
   sortOrder: z.number().int().min(0).optional(),
   estimatedMinutes: z.number().int().min(1).optional(),
@@ -20,7 +20,7 @@ const createLessonSchema = z.object({
 const updateLessonSchema = z.object({
   title: z.string().min(1).optional(),
   content: z.string().optional(),
-  contentType: z.enum(["text", "video", "quiz"]).optional(),
+  contentType: z.enum(["text", "video", "quiz", "code_example", "coding_challenge"]).optional(),
   pointsReward: z.number().int().min(0).optional(),
   sortOrder: z.number().int().min(0).optional(),
   estimatedMinutes: z.number().int().min(1).optional(),

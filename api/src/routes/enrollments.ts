@@ -7,6 +7,7 @@ const router = Router();
 router.post("/", authenticate, enrollmentController.enroll);
 router.post("/guest", enrollmentController.enrollGuest);
 router.get("/my", authenticate, enrollmentController.getMyEnrollments);
+router.get("/by-email", enrollmentController.getEnrollmentsByEmail);
 router.get("/progress/:courseId", authenticate, enrollmentController.getProgress);
 
 export default router;

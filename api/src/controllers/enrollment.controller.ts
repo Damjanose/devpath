@@ -31,6 +31,19 @@ export const enrollmentController = {
     }
   },
 
+  async getEnrollmentsByEmail(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { email } = req.query;
+      if (!email || typeof email !== 'string') {
+        return res.status(400).json({ status: "error", message: "Email is required" });
+      }
+      const enrollments = await enrollmentService.getUserEnrollmentsByEmail(email);
+      res.json({ status: "success", data: enrollments });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async getProgress(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const progress = await enrollmentService.getUserProgress(req.user!.userId, req.params.courseId as string);

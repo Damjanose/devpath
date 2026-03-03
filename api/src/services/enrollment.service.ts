@@ -1,5 +1,6 @@
 import prisma from "../lib/prisma";
 import { ApiError } from "../lib/ApiError";
+import bcrypt from "bcryptjs";
 
 export const enrollmentService = {
   async enroll(userId: string, courseId: string) {
@@ -32,7 +33,6 @@ export const enrollmentService = {
     if (!user) {
       // Create a user with a random password for guest enrollments
       const randomPassword = Math.random().toString(36).slice(-12);
-      const bcrypt = require("bcryptjs");
       const passwordHash = await bcrypt.hash(randomPassword, 12);
       
       user = await prisma.user.create({
@@ -60,6 +60,23 @@ export const enrollmentService = {
   async getUserEnrollments(userId: string) {
     return prisma.enrollment.findMany({
       where: { userId },
+      include: {
+        course: {
+          include: {
+            _count: { select: { modules: true } },
+          },
+        },
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+  },
+
+  async getUserEnrollmentsByEmail(email: string) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return [];
+    
+    return prisma.enrollment.findMany({
+      where: { userId: user.id },
       include: {
         course: {
           include: {

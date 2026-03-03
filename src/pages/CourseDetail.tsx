@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchCourse, enrollCourse, fetchMyEnrollments } from "@/lib/api";
+import { fetchCourse, enrollCourse, fetchEnrollmentsByEmail } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
@@ -11,37 +11,78 @@ import { BookOpen, ChevronRight, Zap, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Footer } from "@/components/Footer";
 
+interface Lesson {
+  id: string;
+  title: string;
+  sort_order: number;
+  estimated_minutes: number;
+}
+
+interface Module {
+  id: string;
+  title: string;
+  description?: string;
+  lessons: Lesson[];
+}
+
+interface Course {
+  id: string;
+  title: string;
+  description?: string;
+  difficulty: string;
+  points_reward: number;
+  modules?: Module[];
+}
+
+interface Enrollment {
+  id?: string;
+  course_id: string;
+  progress_percentage: number;
+  [key: string]: unknown;
+}
+
 export default function CourseDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [course, setCourse] = useState<any | null>(null);
-  const [modules, setModules] = useState<any[]>([]);
-  const [enrollment, setEnrollment] = useState<any | null>(null);
+  const [course, setCourse] = useState<Course | null>(null);
+  const [modules, setModules] = useState<Module[]>([]);
+  const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
   const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (id) loadCourse();
-  }, [id, user]);
-
-  async function loadCourse() {
+  const loadCourse = useCallback(async () => {
     // Fetch course + modules + lessons from Express API
     const courseData = await fetchCourse(id!);
     if (courseData) {
-      setCourse(courseData);
-      setModules(courseData.modules || []);
+      setCourse(courseData as unknown as Course);
+      setModules((courseData.modules as unknown as Module[]) || []);
     }
 
-    // Enrollment from Express API
+    // Enrollment from cache or API
     if (user) {
-      try {
-        const enrollments = await fetchMyEnrollments();
-        const courseEnrollment = enrollments.find((e: any) => e.course_id === id);
-        setEnrollment(courseEnrollment || null);
-      } catch (err) {
-        console.error("Failed to load enrollment:", err);
+      // Check localStorage first for guest enrollments
+      const cacheKey = `enrollments_${user.email}`;
+      const cachedEnrollments = JSON.parse(localStorage.getItem(cacheKey) || "[]") as Enrollment[];
+      const cachedCourseEnrollment = cachedEnrollments.find((e) => e.course_id === id);
+      
+      if (cachedCourseEnrollment) {
+        setEnrollment(cachedCourseEnrollment);
+      } else {
+        // Fetch from API using email (works for all users)
+        try {
+          const enrollments = await fetchEnrollmentsByEmail(user.email!);
+          const courseEnrollment = enrollments.find((e) => (e as Enrollment).course_id === id) as Enrollment | undefined;
+          if (courseEnrollment) {
+            setEnrollment(courseEnrollment);
+            // Cache it
+            cachedEnrollments.push(courseEnrollment);
+            localStorage.setItem(cacheKey, JSON.stringify(cachedEnrollments));
+          }
+        } catch (err) {
+          console.debug("Could not fetch enrollments from API:", err);
+        }
       }
       
       // Progress via Supabase (user-specific data)
@@ -53,14 +94,37 @@ export default function CourseDetail() {
       }
     }
     setLoading(false);
-  }
+  }, [id, user]);
+
+  useEffect(() => {
+    if (id) loadCourse();
+  }, [id, loadCourse]);
 
   async function handleEnroll() {
     if (!user) { navigate("/login"); return; }
     try {
-      await enrollCourse(id!, user.email!);
+      const enrollmentData = await enrollCourse(id!, user.email!);
+      
+      // Store enrollment in localStorage for offline access
+      const cacheKey = `enrollments_${user.email}`;
+      const cachedEnrollments = JSON.parse(localStorage.getItem(cacheKey) || "[]") as Enrollment[];
+      
+      // Convert camelCase from API to snake_case for consistency
+      const enrollmentWithCourseId: Enrollment = {
+        ...(enrollmentData as Enrollment),
+        course_id: id!,
+        progress_percentage: 0,
+      };
+      
+      // Avoid duplicates
+      const filtered = cachedEnrollments.filter((e) => e.course_id !== id);
+      filtered.push(enrollmentWithCourseId);
+      localStorage.setItem(cacheKey, JSON.stringify(filtered));
+      
+      // Update state immediately
+      setEnrollment(enrollmentWithCourseId);
+      
       toast({ title: "Enrolled!", description: "You've been enrolled in this course." });
-      loadCourse();
     } catch (err) {
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to enroll", variant: "destructive" });
     }
@@ -85,7 +149,7 @@ export default function CourseDetail() {
           {!enrollment ? (
             <Button variant="hero" size="lg" onClick={handleEnroll}>Enroll Now</Button>
           ) : (
-            <div className="text-sm text-primary font-mono">✓ Enrolled — {Math.round(enrollment.progress_percentage)}% complete</div>
+            <div className="text-sm text-primary font-mono">✓ Enrolled — {Math.round(enrollment.progress_percentage || 0)}% complete</div>
           )}
         </motion.div>
 
