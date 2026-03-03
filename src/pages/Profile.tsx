@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { motion } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
+import { Footer } from "@/components/Footer";
 import type { Tables } from "@/integrations/supabase/types";
 
 export default function Profile() {
@@ -55,7 +56,7 @@ export default function Profile() {
   const totalPoints = profile?.total_points || 0;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
       <main className="container py-8 max-w-2xl space-y-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -90,6 +91,7 @@ export default function Profile() {
           )}
         </section>
       </main>
+      <Footer />
     </div>
   );
 }

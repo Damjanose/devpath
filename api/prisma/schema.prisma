@@ -1,0 +1,202 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AppRole {
+  admin
+  moderator
+  user
+}
+
+enum Difficulty {
+  beginner
+  intermediate
+  advanced
+}
+
+enum ContentType {
+  text
+  video
+  quiz
+}
+
+enum ConditionType {
+  points_total
+  courses_completed
+  lessons_completed
+  streak_days
+}
+
+enum BadgeTier {
+  bronze
+  silver
+  gold
+  platinum
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  profile        Profile?
+  roles          UserRole[]
+  enrollments    Enrollment[]
+  lessonProgress LessonProgress[]
+  userBadges     UserBadge[]
+  coursesCreated Course[]         @relation("CourseCreator")
+
+  @@map("users")
+}
+
+model Profile {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @unique @map("user_id") @db.Uuid
+  displayName String?  @map("display_name")
+  avatarUrl   String?  @map("avatar_url")
+  bio         String?
+  totalPoints Int      @default(0) @map("total_points")
+  level       Int      @default(1)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model UserRole {
+  id     String  @id @default(uuid()) @db.Uuid
+  userId String  @map("user_id") @db.Uuid
+  role   AppRole
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@index([userId])
+  @@map("user_roles")
+}
+
+model Course {
+  id           String     @id @default(uuid()) @db.Uuid
+  title        String
+  description  String?
+  thumbnailUrl String?    @map("thumbnail_url")
+  difficulty   Difficulty @default(beginner)
+  pointsReward Int        @default(100) @map("points_reward")
+  isPublished  Boolean    @default(false) @map("is_published")
+  createdBy    String?    @map("created_by") @db.Uuid
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  creator     User?        @relation("CourseCreator", fields: [createdBy], references: [id])
+  modules     Module[]
+  enrollments Enrollment[]
+
+  @@map("courses")
+}
+
+model Module {
+  id          String   @id @default(uuid()) @db.Uuid
+  courseId    String   @map("course_id") @db.Uuid
+  title       String
+  description String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+
+  @@index([courseId])
+  @@map("modules")
+}
+
+model Lesson {
+  id               String      @id @default(uuid()) @db.Uuid
+  moduleId         String      @map("module_id") @db.Uuid
+  title            String
+  content          String?
+  contentType      ContentType @default(text) @map("content_type")
+  pointsReward     Int         @default(10) @map("points_reward")
+  sortOrder        Int         @default(0) @map("sort_order")
+  estimatedMinutes Int         @default(5) @map("estimated_minutes")
+  createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt        DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  module   Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress LessonProgress[]
+
+  @@index([moduleId])
+  @@map("lessons")
+}
+
+model Enrollment {
+  id                 String    @id @default(uuid()) @db.Uuid
+  userId             String    @map("user_id") @db.Uuid
+  courseId            String    @map("course_id") @db.Uuid
+  progressPercentage Float     @default(0) @map("progress_percentage")
+  completedAt        DateTime? @map("completed_at") @db.Timestamptz
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+  @@map("enrollments")
+}
+
+model LessonProgress {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  lessonId     String   @map("lesson_id") @db.Uuid
+  completedAt  DateTime @default(now()) @map("completed_at") @db.Timestamptz
+  pointsEarned Int      @default(0) @map("points_earned")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
+  @@map("lesson_progress")
+}
+
+model Badge {
+  id             String        @id @default(uuid()) @db.Uuid
+  name           String
+  description    String?
+  iconUrl        String?       @map("icon_url")
+  conditionType  ConditionType @map("condition_type")
+  conditionValue Int           @map("condition_value")
+  tier           BadgeTier     @default(bronze)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  userBadges UserBadge[]
+
+  @@map("badges")
+}
+
+model UserBadge {
+  id       String   @id @default(uuid()) @db.Uuid
+  userId   String   @map("user_id") @db.Uuid
+  badgeId  String   @map("badge_id") @db.Uuid
+  earnedAt DateTime @default(now()) @map("earned_at") @db.Timestamptz
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@map("user_badges")
+}

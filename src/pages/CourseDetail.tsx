@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 import { BookOpen, ChevronRight, Zap, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Footer } from "@/components/Footer";
 import type { Tables } from "@/integrations/supabase/types";
 
 type ModuleWithLessons = Tables<"modules"> & { lessons: Tables<"lessons">[] };
@@ -61,9 +62,9 @@ export default function CourseDetail() {
   if (!course) return <div className="min-h-screen bg-background"><Navbar /><div className="container py-16 text-center text-muted-foreground">Course not found</div></div>;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
-      <main className="container py-8 max-w-4xl space-y-8">
+      <main className="container py-8 max-w-4xl space-y-8 flex-1">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
           <Badge variant="outline" className="capitalize">{course.difficulty}</Badge>
           <h1 className="text-4xl font-bold text-foreground">{course.title}</h1>
@@ -119,6 +120,7 @@ export default function CourseDetail() {
           ))}
         </section>
       </main>
+      <Footer />
     </div>
   );
 }

@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: devpath-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: devpath
+      POSTGRES_PASSWORD: devpath_secret
+      POSTGRES_DB: devpath
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devpath"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: devpath-api
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: postgresql://devpath:devpath_secret@postgres:5432/devpath
+      JWT_SECRET: devpath-jwt-secret-change-in-production
+      CORS_ORIGIN: http://localhost:8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./api/src:/app/src
+    command: npm run dev
+
+volumes:
+  pgdata:
