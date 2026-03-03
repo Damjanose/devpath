@@ -95,6 +95,7 @@ const defaultStats = [
 
 export default function Index() {
   const { user } = useAuth();
+  const primaryCtaPath = user ? "/dashboard" : "/register";
   const [stats, setStats] = useState(defaultStats);
 
   useEffect(() => {
@@ -149,7 +150,7 @@ export default function Index() {
               </p>
 
               <div className="flex items-center gap-4 pt-2">
-                <Link to="/register">
+                <Link to={primaryCtaPath}>
                   <Button variant="hero" size="lg" className="text-base">
                     Start Learning Free{" "}
                     <ChevronRight className="h-4 w-4 ml-1" />
@@ -384,7 +385,7 @@ export default function Index() {
             Join DevPath Academy today and transform the way you learn to code.
             It&apos;s free to get started.
           </p>
-          <Link to="/register">
+          <Link to={primaryCtaPath}>
             <Button variant="hero" size="lg">
               Create Free Account
             </Button>

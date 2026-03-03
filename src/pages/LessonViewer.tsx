@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, isValidElement, type ReactElement, type ReactNode } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchLesson, fetchCourse } from "@/lib/api";
@@ -10,6 +10,7 @@ import { CheckCircle2, ArrowLeft, ArrowRight, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
 
 interface Lesson {
   id: string;
@@ -23,6 +24,33 @@ interface Lesson {
     title: string;
     course_id: string;
   };
+}
+
+function getCodeLanguage(child: ReactElement<{ className?: string }>) {
+  const className = child.props.className || "";
+  const match = /language-([\w-]+)/.exec(className);
+  return match?.[1]?.toUpperCase() ?? "CODE";
+}
+
+function renderCodeBlock(children: ReactNode) {
+  const firstChild = Array.isArray(children) ? children[0] : children;
+  if (!isValidElement(firstChild)) {
+    return <pre>{children}</pre>;
+  }
+
+  const codeChild = firstChild as ReactElement<{ className?: string; children?: ReactNode }>;
+  const language = getCodeLanguage(codeChild);
+
+  return (
+    <div className="not-prose my-5 overflow-hidden rounded-lg border border-border bg-secondary/30">
+      <div className="flex items-center justify-between border-b border-border bg-secondary/50 px-4 py-2 text-xs font-mono text-muted-foreground">
+        <span>{language}</span>
+      </div>
+      <pre className="overflow-x-auto p-4 text-sm leading-6">
+        <code className={codeChild.props.className}>{codeChild.props.children}</code>
+      </pre>
+    </div>
+  );
 }
 
 export default function LessonViewer() {
@@ -161,9 +189,17 @@ export default function LessonViewer() {
           </div>
 
           <div className="rounded-lg border border-border bg-card p-6">
-            <div className="prose prose-invert prose-green max-w-none prose-headings:text-foreground prose-p:text-foreground/90 prose-strong:text-foreground prose-code:text-primary prose-code:bg-secondary prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-[#0d1117] prose-pre:border prose-pre:border-border prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-li:text-foreground/90 prose-th:text-foreground prose-td:text-foreground/90 prose-hr:border-border">
+            <div className="prose prose-invert prose-green max-w-none prose-headings:text-foreground prose-p:text-foreground/90 prose-strong:text-foreground prose-code:text-primary prose-code:bg-secondary prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-li:text-foreground/90 prose-th:text-foreground prose-td:text-foreground/90 prose-hr:border-border">
               {lesson.content ? (
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{lesson.content}</ReactMarkdown>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeHighlight]}
+                  components={{
+                    pre: ({ children }) => renderCodeBlock(children),
+                  }}
+                >
+                  {lesson.content}
+                </ReactMarkdown>
               ) : (
                 <p className="text-muted-foreground">No content available yet.</p>
               )}

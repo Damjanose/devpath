@@ -114,3 +114,45 @@
     );
   }
 }
+
+@layer base {
+  .hljs {
+    @apply text-foreground;
+  }
+
+  .hljs-comment,
+  .hljs-quote {
+    @apply text-muted-foreground;
+  }
+
+  .hljs-keyword,
+  .hljs-selector-tag,
+  .hljs-literal,
+  .hljs-name,
+  .hljs-strong {
+    @apply text-primary;
+  }
+
+  .hljs-string,
+  .hljs-title,
+  .hljs-section,
+  .hljs-type,
+  .hljs-attr,
+  .hljs-template-tag,
+  .hljs-template-variable {
+    @apply text-cyber-blue;
+  }
+
+  .hljs-number,
+  .hljs-symbol,
+  .hljs-bullet,
+  .hljs-variable,
+  .hljs-params,
+  .hljs-link {
+    @apply text-gold;
+  }
+
+  .hljs-emphasis {
+    font-style: italic;
+  }
+}
