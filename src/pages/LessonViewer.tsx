@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { CheckCircle2, ArrowLeft, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { Tables } from "@/integrations/supabase/types";
 
 export default function LessonViewer() {
@@ -96,9 +98,9 @@ export default function LessonViewer() {
           </div>
 
           <div className="rounded-lg border border-border bg-card p-6">
-            <div className="prose prose-invert max-w-none">
+            <div className="prose prose-invert prose-green max-w-none prose-headings:text-foreground prose-p:text-foreground/90 prose-strong:text-foreground prose-code:text-primary prose-code:bg-secondary prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-pre:bg-[#0d1117] prose-pre:border prose-pre:border-border prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-li:text-foreground/90 prose-th:text-foreground prose-td:text-foreground/90 prose-hr:border-border">
               {lesson.content ? (
-                <div className="whitespace-pre-wrap text-foreground font-mono text-sm leading-relaxed">{lesson.content}</div>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{lesson.content}</ReactMarkdown>
               ) : (
                 <p className="text-muted-foreground">No content available yet.</p>
               )}

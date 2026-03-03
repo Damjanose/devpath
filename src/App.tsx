@@ -16,6 +16,7 @@ import Profile from "./pages/Profile";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import CourseManager from "./pages/admin/CourseManager";
 import BadgeManager from "./pages/admin/BadgeManager";
+import CourseEditor from "./pages/admin/CourseEditor";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
             <Route path="/admin/courses" element={<AdminRoute><CourseManager /></AdminRoute>} />
+            <Route path="/admin/courses/:id" element={<AdminRoute><CourseEditor /></AdminRoute>} />
             <Route path="/admin/badges" element={<AdminRoute><BadgeManager /></AdminRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
