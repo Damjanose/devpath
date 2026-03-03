@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchLesson } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
@@ -9,14 +10,14 @@ import { CheckCircle2, ArrowLeft, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { Tables } from "@/integrations/supabase/types";
 
 export default function LessonViewer() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [lesson, setLesson] = useState<Tables<"lessons"> | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [lesson, setLesson] = useState<any | null>(null);
   const [completed, setCompleted] = useState(false);
   const [completing, setCompleting] = useState(false);
 
@@ -25,11 +26,11 @@ export default function LessonViewer() {
   }, [id, user]);
 
   async function loadLesson() {
-    const [lessonRes, progressRes] = await Promise.all([
-      supabase.from("lessons").select("*").eq("id", id!).maybeSingle(),
+    const [lessonData, progressRes] = await Promise.all([
+      fetchLesson(id!),
       supabase.from("lesson_progress").select("id").eq("user_id", user!.id).eq("lesson_id", id!).maybeSingle(),
     ]);
-    setLesson(lessonRes.data);
+    setLesson(lessonData);
     setCompleted(!!progressRes.data);
   }
 

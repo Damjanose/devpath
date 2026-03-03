@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchCourse } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
@@ -9,18 +10,15 @@ import { motion } from "framer-motion";
 import { BookOpen, ChevronRight, Zap, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Footer } from "@/components/Footer";
-import type { Tables } from "@/integrations/supabase/types";
-
-type ModuleWithLessons = Tables<"modules"> & { lessons: Tables<"lessons">[] };
 
 export default function CourseDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [course, setCourse] = useState<Tables<"courses"> | null>(null);
-  const [modules, setModules] = useState<ModuleWithLessons[]>([]);
-  const [enrollment, setEnrollment] = useState<Tables<"enrollments"> | null>(null);
+  const [course, setCourse] = useState<any | null>(null);
+  const [modules, setModules] = useState<any[]>([]);
+  const [enrollment, setEnrollment] = useState<any | null>(null);
   const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
@@ -29,13 +27,14 @@ export default function CourseDetail() {
   }, [id, user]);
 
   async function loadCourse() {
-    const [courseRes, modulesRes] = await Promise.all([
-      supabase.from("courses").select("*").eq("id", id!).maybeSingle(),
-      supabase.from("modules").select("*, lessons(*)").eq("course_id", id!).order("sort_order"),
-    ]);
-    setCourse(courseRes.data);
-    setModules((modulesRes.data as any) || []);
+    // Fetch course + modules + lessons from Express API
+    const courseData = await fetchCourse(id!);
+    if (courseData) {
+      setCourse(courseData);
+      setModules(courseData.modules || []);
+    }
 
+    // Enrollment & progress still via Supabase (user-specific data)
     if (user) {
       const [enrollRes, progressRes] = await Promise.all([
         supabase.from("enrollments").select("*").eq("user_id", user.id).eq("course_id", id!).maybeSingle(),

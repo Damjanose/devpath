@@ -23,7 +23,7 @@ VALUES (
 -- ══════════════════════════════════════════════════════════════
 INSERT INTO public.modules (id, course_id, title, description, sort_order)
 VALUES (
-  'm1000000-0000-0000-0000-000000000001',
+  'a1000000-0000-0000-0000-000000000001',
   'c1000000-0000-0000-0000-000000000001',
   'How the Web Works',
   'Understand the journey from URL to rendered page.',
@@ -33,8 +33,8 @@ VALUES (
 -- Lesson 1.1
 INSERT INTO public.lessons (id, module_id, title, content, content_type, points_reward, sort_order, estimated_minutes)
 VALUES (
-  'l1000000-0000-0000-0000-000000000001',
-  'm1000000-0000-0000-0000-000000000001',
+  'b1000000-0000-0000-0000-000000000001',
+  'a1000000-0000-0000-0000-000000000001',
   'How Browsers Load a Web Page',
   '# How Browsers Load a Web Page
 
@@ -73,8 +73,8 @@ Understanding this process is the foundation of web performance optimization.',
 -- Lesson 1.2
 INSERT INTO public.lessons (id, module_id, title, content, content_type, points_reward, sort_order, estimated_minutes)
 VALUES (
-  'l1000000-0000-0000-0000-000000000002',
-  'm1000000-0000-0000-0000-000000000001',
+  'b1000000-0000-0000-0000-000000000002',
+  'a1000000-0000-0000-0000-000000000001',
   'The HTTP Request/Response Cycle',
   '# The HTTP Request/Response Cycle
 
@@ -124,8 +124,8 @@ Headers carry metadata: content type, caching directives, authentication tokens,
 -- Lesson 1.3
 INSERT INTO public.lessons (id, module_id, title, content, content_type, points_reward, sort_order, estimated_minutes)
 VALUES (
-  'l1000000-0000-0000-0000-000000000003',
-  'm1000000-0000-0000-0000-000000000001',
+  'b1000000-0000-0000-0000-000000000003',
+  'a1000000-0000-0000-0000-000000000001',
   'DNS, Domains, and Hosting Basics',
   '# DNS, Domains, and Hosting Basics
 
@@ -171,7 +171,7 @@ subdomain.domain.tld
 -- ══════════════════════════════════════════════════════════════
 INSERT INTO public.modules (id, course_id, title, description, sort_order)
 VALUES (
-  'm1000000-0000-0000-0000-000000000002',
+  'a1000000-0000-0000-0000-000000000002',
   'c1000000-0000-0000-0000-000000000001',
   'HTML Foundations',
   'Build proper HTML documents with semantic elements.',
@@ -181,8 +181,8 @@ VALUES (
 -- Lesson 2.1
 INSERT INTO public.lessons (id, module_id, title, content, content_type, points_reward, sort_order, estimated_minutes)
 VALUES (
-  'l1000000-0000-0000-0000-000000000004',
-  'm1000000-0000-0000-0000-000000000002',
+  'b1000000-0000-0000-0000-000000000004',
+  'a1000000-0000-0000-0000-000000000002',
   'Document Structure & Semantic HTML',
   '# Document Structure & Semantic HTML
 
@@ -236,8 +236,8 @@ Semantic HTML uses elements that describe their meaning:
 -- Lesson 2.2
 INSERT INTO public.lessons (id, module_id, title, content, content_type, points_reward, sort_order, estimated_minutes)
 VALUES (
-  'l1000000-0000-0000-0000-000000000005',
-  'm1000000-0000-0000-0000-000000000002',
+  'b1000000-0000-0000-0000-000000000005',
+  'a1000000-0000-0000-0000-000000000002',
   'Text, Links, and Media',
   '# Text, Links, and Media
 
@@ -297,8 +297,8 @@ Always include `alt` text for accessibility.
 -- Lesson 2.3
 INSERT INTO public.lessons (id, module_id, title, content, content_type, points_reward, sort_order, estimated_minutes)
 VALUES (
-  'l1000000-0000-0000-0000-000000000006',
-  'm1000000-0000-0000-0000-000000000002',
+  'b1000000-0000-0000-0000-000000000006',
+  'a1000000-0000-0000-0000-000000000002',
   'Forms and Input Elements',
   '# Forms and Input Elements
 
@@ -355,8 +355,8 @@ Forms collect user input and submit it to a server.
 -- Lesson 2.4
 INSERT INTO public.lessons (id, module_id, title, content, content_type, points_reward, sort_order, estimated_minutes)
 VALUES (
-  'l1000000-0000-0000-0000-000000000007',
-  'm1000000-0000-0000-0000-000000000002',
+  'b1000000-0000-0000-0000-000000000007',
+  'a1000000-0000-0000-0000-000000000002',
   'HTML Accessibility Fundamentals',
   '# HTML Accessibility Fundamentals
 
@@ -408,7 +408,7 @@ Ensure text has at least 4.5:1 contrast ratio against its background.',
 -- ══════════════════════════════════════════════════════════════
 INSERT INTO public.modules (id, course_id, title, description, sort_order)
 VALUES (
-  'm1000000-0000-0000-0000-000000000003',
+  'a1000000-0000-0000-0000-000000000003',
   'c1000000-0000-0000-0000-000000000001',
   'CSS Fundamentals',
   'Master selectors, the box model, and modern layout techniques.',
@@ -418,8 +418,8 @@ VALUES (
 -- Lesson 3.1
 INSERT INTO public.lessons (id, module_id, title, content, content_type, points_reward, sort_order, estimated_minutes)
 VALUES (
-  'l1000000-0000-0000-0000-000000000008',
-  'm1000000-0000-0000-0000-000000000003',
+  'b1000000-0000-0000-0000-000000000008',
+  'a1000000-0000-0000-0000-000000000003',
   'Selectors, Specificity & the Cascade',
   '# Selectors, Specificity & the Cascade
 
@@ -475,8 +475,8 @@ When specificity is equal, the last rule defined wins. Styles are applied in thi
 -- Lesson 3.2
 INSERT INTO public.lessons (id, module_id, title, content, content_type, points_reward, sort_order, estimated_minutes)
 VALUES (
-  'l1000000-0000-0000-0000-000000000009',
-  'm1000000-0000-0000-0000-000000000003',
+  'b1000000-0000-0000-0000-000000000009',
+  'a1000000-0000-0000-0000-000000000003',
   'The Box Model & Layout',
   '# The Box Model & Layout
 
@@ -529,8 +529,8 @@ Vertical margins between adjacent block elements collapse — only the larger ma
 -- Lesson 3.3
 INSERT INTO public.lessons (id, module_id, title, content, content_type, points_reward, sort_order, estimated_minutes)
 VALUES (
-  'l1000000-0000-0000-0000-000000000010',
-  'm1000000-0000-0000-0000-000000000003',
+  'b1000000-0000-0000-0000-000000000010',
+  'a1000000-0000-0000-0000-000000000003',
   'Flexbox Layout',
   '# Flexbox Layout
 
@@ -589,8 +589,8 @@ Flexbox is a one-dimensional layout system for arranging items in rows or column
 -- Lesson 3.4
 INSERT INTO public.lessons (id, module_id, title, content, content_type, points_reward, sort_order, estimated_minutes)
 VALUES (
-  'l1000000-0000-0000-0000-000000000011',
-  'm1000000-0000-0000-0000-000000000003',
+  'b1000000-0000-0000-0000-000000000011',
+  'a1000000-0000-0000-0000-000000000003',
   'CSS Grid Layout',
   '# CSS Grid Layout
 
@@ -655,7 +655,7 @@ grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Responsive */
 -- ══════════════════════════════════════════════════════════════
 INSERT INTO public.modules (id, course_id, title, description, sort_order)
 VALUES (
-  'm1000000-0000-0000-0000-000000000004',
+  'a1000000-0000-0000-0000-000000000004',
   'c1000000-0000-0000-0000-000000000001',
   'Responsive Design',
   'Build sites that work beautifully on every screen size.',
@@ -665,8 +665,8 @@ VALUES (
 -- Lesson 4.1
 INSERT INTO public.lessons (id, module_id, title, content, content_type, points_reward, sort_order, estimated_minutes)
 VALUES (
-  'l1000000-0000-0000-0000-000000000012',
-  'm1000000-0000-0000-0000-000000000004',
+  'b1000000-0000-0000-0000-000000000012',
+  'a1000000-0000-0000-0000-000000000004',
   'Media Queries',
   '# Media Queries
 
@@ -716,8 +716,8 @@ Media queries let you apply CSS rules based on screen size, orientation, and oth
 -- Lesson 4.2
 INSERT INTO public.lessons (id, module_id, title, content, content_type, points_reward, sort_order, estimated_minutes)
 VALUES (
-  'l1000000-0000-0000-0000-000000000013',
-  'm1000000-0000-0000-0000-000000000004',
+  'b1000000-0000-0000-0000-000000000013',
+  'a1000000-0000-0000-0000-000000000004',
   'Mobile-First Design Approach',
   '# Mobile-First Design Approach
 
@@ -780,8 +780,8 @@ Always include this in your HTML `<head>`:
 -- Lesson 4.3
 INSERT INTO public.lessons (id, module_id, title, content, content_type, points_reward, sort_order, estimated_minutes)
 VALUES (
-  'l1000000-0000-0000-0000-000000000014',
-  'm1000000-0000-0000-0000-000000000004',
+  'b1000000-0000-0000-0000-000000000014',
+  'a1000000-0000-0000-0000-000000000004',
   'CSS Custom Properties (Variables)',
   '# CSS Custom Properties (Variables)
 
@@ -848,8 +848,8 @@ document.documentElement.style.setProperty(''--primary'', ''#ff6347'');
 -- Lesson 4.4
 INSERT INTO public.lessons (id, module_id, title, content, content_type, points_reward, sort_order, estimated_minutes)
 VALUES (
-  'l1000000-0000-0000-0000-000000000015',
-  'm1000000-0000-0000-0000-000000000004',
+  'b1000000-0000-0000-0000-000000000015',
+  'a1000000-0000-0000-0000-000000000004',
   'Building a Responsive Landing Page',
   '# Building a Responsive Landing Page
 
@@ -925,7 +925,7 @@ Congratulations! You''ve built your first responsive website from scratch.',
 -- ══════════════════════════════════════════════════════════════
 INSERT INTO public.modules (id, course_id, title, description, sort_order)
 VALUES (
-  'm1000000-0000-0000-0000-000000000005',
+  'a1000000-0000-0000-0000-000000000005',
   'c1000000-0000-0000-0000-000000000001',
   'Developer Tooling',
   'Set up your development environment and learn Git.',
@@ -935,8 +935,8 @@ VALUES (
 -- Lesson 5.1
 INSERT INTO public.lessons (id, module_id, title, content, content_type, points_reward, sort_order, estimated_minutes)
 VALUES (
-  'l1000000-0000-0000-0000-000000000016',
-  'm1000000-0000-0000-0000-000000000005',
+  'b1000000-0000-0000-0000-000000000016',
+  'a1000000-0000-0000-0000-000000000005',
   'Browser DevTools Essentials',
   '# Browser DevTools Essentials
 
@@ -986,8 +986,8 @@ console.timeEnd("fetch"); // fetch: 142ms
 -- Lesson 5.2
 INSERT INTO public.lessons (id, module_id, title, content, content_type, points_reward, sort_order, estimated_minutes)
 VALUES (
-  'l1000000-0000-0000-0000-000000000017',
-  'm1000000-0000-0000-0000-000000000005',
+  'b1000000-0000-0000-0000-000000000017',
+  'a1000000-0000-0000-0000-000000000005',
   'VS Code Setup & Productivity',
   '# VS Code Setup & Productivity
 
@@ -1037,8 +1037,8 @@ Type abbreviations and press Tab:
 -- Lesson 5.3
 INSERT INTO public.lessons (id, module_id, title, content, content_type, points_reward, sort_order, estimated_minutes)
 VALUES (
-  'l1000000-0000-0000-0000-000000000018',
-  'm1000000-0000-0000-0000-000000000005',
+  'b1000000-0000-0000-0000-000000000018',
+  'a1000000-0000-0000-0000-000000000005',
   'Git Basics — Init, Commit, Push',
   '# Git Basics — Init, Commit, Push
 
@@ -1099,8 +1099,8 @@ dist/
 -- Lesson 5.4
 INSERT INTO public.lessons (id, module_id, title, content, content_type, points_reward, sort_order, estimated_minutes)
 VALUES (
-  'l1000000-0000-0000-0000-000000000019',
-  'm1000000-0000-0000-0000-000000000005',
+  'b1000000-0000-0000-0000-000000000019',
+  'a1000000-0000-0000-0000-000000000005',
   'Git Branching & Collaboration',
   '# Git Branching & Collaboration
 

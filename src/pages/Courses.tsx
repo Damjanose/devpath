@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { fetchCourses } from "@/lib/api";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { CourseCard } from "@/components/CourseCard";
@@ -7,12 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { Search } from "lucide-react";
-import type { Tables } from "@/integrations/supabase/types";
 
 const FILTER_OPTIONS = ["All Categories", "Beginner", "Intermediate", "Advanced"] as const;
 
 export default function Courses() {
-  const [courses, setCourses] = useState<Tables<"courses">[]>([]);
+  const [courses, setCourses] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [difficulty, setDifficulty] = useState<string>("All Categories");
   const [loading, setLoading] = useState(true);
@@ -22,8 +21,8 @@ export default function Courses() {
   }, []);
 
   async function loadCourses() {
-    const { data } = await supabase.from("courses").select("*").eq("is_published", true).order("created_at", { ascending: false });
-    setCourses(data || []);
+    const data = await fetchCourses();
+    setCourses(data);
     setLoading(false);
   }
 
