@@ -52,6 +52,16 @@ export default function CourseDetail() {
   const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
+  const loadCompletedLessons = useCallback(async () => {
+    if (!user) return;
+    try {
+      const progressRes = await supabase.from("lesson_progress").select("lesson_id").eq("user_id", user.id);
+      setCompletedLessons(new Set(progressRes.data?.map((p) => p.lesson_id) || []));
+    } catch (err) {
+      console.error("Failed to load progress:", err);
+    }
+  }, [user]);
+
   const loadCourse = useCallback(async () => {
     // Fetch course + modules + lessons from Express API
     const courseData = await fetchCourse(id!);
@@ -86,19 +96,35 @@ export default function CourseDetail() {
       }
       
       // Progress via Supabase (user-specific data)
-      try {
-        const progressRes = await supabase.from("lesson_progress").select("lesson_id").eq("user_id", user.id);
-        setCompletedLessons(new Set(progressRes.data?.map((p) => p.lesson_id) || []));
-      } catch (err) {
-        console.error("Failed to load progress:", err);
-      }
+      await loadCompletedLessons();
     }
     setLoading(false);
-  }, [id, user]);
+  }, [id, user, loadCompletedLessons]);
 
   useEffect(() => {
     if (id) loadCourse();
   }, [id, loadCourse]);
+
+  // Reload completed lessons when page becomes visible (e.g., after navigating back from a lesson)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        loadCompletedLessons();
+      }
+    };
+
+    const handleFocus = () => {
+      loadCompletedLessons();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [loadCompletedLessons]);
 
   async function handleEnroll() {
     if (!user) { navigate("/login"); return; }

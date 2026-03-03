@@ -71,3 +71,57 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## API & Database Management
+
+This project includes an Express API backend with PostgreSQL database.
+
+### Starting the API Server
+
+```sh
+cd api
+npm run dev
+```
+
+### Database Scripts
+
+```sh
+# Generate Prisma client
+npm run db:generate
+
+# Push schema changes to database
+npm run db:push
+
+# Run database migrations
+npm run db:migrate
+
+# Seed the database with course data (18 courses)
+npm run db:seed
+
+# Clear all enrollments and reset user progress
+npm run db:clear
+
+# Open Prisma Studio (database GUI)
+npm run db:studio
+```
+
+### Database Reset Workflow
+
+To completely reset user enrollments and progress:
+
+```sh
+cd api
+npm run db:clear
+```
+
+This will:
+- Delete all course enrollments
+- Clear all lesson progress
+- Reset all user profiles to Level 1 with 0 points
+
+**Note**: Users should clear browser localStorage or logout/login after running this command.
+
+### Admin Login
+
+- Email: `admin@devpath.dev`
+- Password: `admin123`

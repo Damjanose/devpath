@@ -1,25 +1,39 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchLesson } from "@/lib/api";
+import { fetchLesson, fetchCourse } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { CheckCircle2, ArrowLeft, Zap } from "lucide-react";
+import { CheckCircle2, ArrowLeft, ArrowRight, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+
+interface Lesson {
+  id: string;
+  title: string;
+  module_id: string;
+  points_reward: number;
+  sort_order: number;
+  content?: string;
+  module?: {
+    id: string;
+    title: string;
+    course_id: string;
+  };
+}
 
 export default function LessonViewer() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [lesson, setLesson] = useState<any | null>(null);
+  const [lesson, setLesson] = useState<Lesson | null>(null);
   const [completed, setCompleted] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const [nextLessonId, setNextLessonId] = useState<string | null>(null);
 
   useEffect(() => {
     if (id && user) loadLesson();
@@ -30,8 +44,44 @@ export default function LessonViewer() {
       fetchLesson(id!),
       supabase.from("lesson_progress").select("id").eq("user_id", user!.id).eq("lesson_id", id!).maybeSingle(),
     ]);
-    setLesson(lessonData);
+    setLesson(lessonData as Lesson);
     setCompleted(!!progressRes.data);
+
+    // Fetch course to find next lesson
+    if (lessonData) {
+      const courseData = await fetchCourse((lessonData as Lesson).module?.course_id || "");
+      if (courseData) {
+        findNextLesson(courseData, lessonData as Lesson);
+      }
+    }
+  }
+
+  function findNextLesson(courseData: any, currentLesson: Lesson) {
+    const modules = courseData.modules || [];
+    
+    // Flatten all lessons with their order
+    const allLessons: Array<{ id: string; moduleOrder: number; lessonOrder: number }> = [];
+    modules.forEach((mod: any, modIndex: number) => {
+      mod.lessons?.forEach((les: any) => {
+        allLessons.push({
+          id: les.id,
+          moduleOrder: modIndex,
+          lessonOrder: les.sort_order || 0,
+        });
+      });
+    });
+
+    // Sort by module order, then lesson order
+    allLessons.sort((a, b) => {
+      if (a.moduleOrder !== b.moduleOrder) return a.moduleOrder - b.moduleOrder;
+      return a.lessonOrder - b.lessonOrder;
+    });
+
+    // Find current lesson index
+    const currentIndex = allLessons.findIndex((l) => l.id === currentLesson.id);
+    if (currentIndex >= 0 && currentIndex < allLessons.length - 1) {
+      setNextLessonId(allLessons[currentIndex + 1].id);
+    }
   }
 
   async function handleComplete() {
@@ -54,10 +104,9 @@ export default function LessonViewer() {
       }
 
       // Recalculate course progress
-      const { data: mod } = await supabase.from("modules").select("course_id").eq("id", lesson.module_id).maybeSingle();
-      if (mod) {
-        const { data: allLessons } = await supabase.from("lessons").select("id").eq("module_id", lesson.module_id);
-        const courseModules = await supabase.from("modules").select("id").eq("course_id", mod.course_id);
+      const courseId = lesson.module?.course_id;
+      if (courseId) {
+        const courseModules = await supabase.from("modules").select("id").eq("course_id", courseId);
         const allModuleIds = courseModules.data?.map(m => m.id) || [];
         
         const { data: courseLessons } = await supabase.from("lessons").select("id").in("module_id", allModuleIds);
@@ -70,7 +119,7 @@ export default function LessonViewer() {
         await supabase.from("enrollments").update({ 
           progress_percentage: progress,
           completed_at: progress >= 100 ? new Date().toISOString() : null 
-        }).eq("user_id", user.id).eq("course_id", mod.course_id);
+        }).eq("user_id", user.id).eq("course_id", courseId);
       }
 
       setCompleted(true);
@@ -79,6 +128,19 @@ export default function LessonViewer() {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
       setCompleting(false);
+    }
+  }
+
+  function handleNextLesson() {
+    if (nextLessonId) {
+      navigate(`/lessons/${nextLessonId}`);
+    } else {
+      // Go back to course if no next lesson
+      if (lesson?.module?.course_id) {
+        navigate(`/courses/${lesson.module.course_id}`);
+      } else {
+        navigate(-1);
+      }
     }
   }
 
@@ -108,11 +170,22 @@ export default function LessonViewer() {
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-3">
             {completed ? (
-              <div className="flex items-center gap-2 text-primary font-mono">
-                <CheckCircle2 className="h-5 w-5" /> Completed
-              </div>
+              <>
+                <div className="flex items-center gap-2 text-primary font-mono">
+                  <CheckCircle2 className="h-5 w-5" /> Completed
+                </div>
+                <Button variant="hero" onClick={handleNextLesson}>
+                  {nextLessonId ? (
+                    <>
+                      Next Lesson <ArrowRight className="h-4 w-4 ml-1" />
+                    </>
+                  ) : (
+                    "Back to Course"
+                  )}
+                </Button>
+              </>
             ) : (
               <Button variant="hero" onClick={handleComplete} disabled={completing}>
                 {completing ? "Completing..." : "Mark as Complete"}
