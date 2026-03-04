@@ -1,15 +1,14 @@
 import { Link } from "react-router-dom";
-import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
 import {
   BookOpen, Award, Zap, Users, Code, BarChart3,
   ChevronRight, Terminal,
 } from "lucide-react";
+import { usePlatformStatsQuery } from "@/hooks/queries/usePlatformStatsQuery";
 
 function CodeLine({ n, children }: { n: number; children: React.ReactNode }) {
   return (
@@ -96,26 +95,7 @@ const defaultStats = [
 export default function Index() {
   const { user } = useAuth();
   const primaryCtaPath = user ? "/dashboard" : "/register";
-  const [stats, setStats] = useState(defaultStats);
-
-  useEffect(() => {
-    if (!user) return;
-    async function loadPlatformStats() {
-      const [profiles, courses, badges, lessons] = await Promise.all([
-        supabase.from("profiles").select("id", { count: "exact", head: true }),
-        supabase.from("courses").select("id", { count: "exact", head: true }).eq("is_published", true),
-        supabase.from("user_badges").select("id", { count: "exact", head: true }),
-        supabase.from("lesson_progress").select("id", { count: "exact", head: true }),
-      ]);
-      setStats([
-        { value: `${profiles.count || 0}+`, label: "Active Learners" },
-        { value: `${courses.count || 0}+`, label: "Courses Available" },
-        { value: `${badges.count || 0}+`, label: "Badges Earned" },
-        { value: `${lessons.count || 0}+`, label: "Lessons Completed" },
-      ]);
-    }
-    loadPlatformStats();
-  }, [user]);
+  const { data: stats = defaultStats } = usePlatformStatsQuery(!!user);
 
   return (
     <div className="min-h-screen bg-background">
