@@ -171,7 +171,7 @@ export default function LessonViewer() {
               // Auto-navigate to next lesson after 5 seconds
               setTimeout(() => {
                 handleNextLesson();
-              }, 5000);
+              }, 3000);
             } else {
               toast({
                 title: "Already completed",
@@ -264,8 +264,14 @@ export default function LessonViewer() {
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="container py-8 max-w-3xl space-y-6">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-4 w-4 mr-1" /> Back
+        <Button variant="ghost" size="sm" onClick={() => {
+          if (lesson?.module?.course_id) {
+            navigate(`/courses/${lesson.module.course_id}`);
+          } else {
+            navigate('/courses');
+          }
+        }}>
+          <ArrowLeft className="h-4 w-4 mr-1" /> Back to Curriculum
         </Button>
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
