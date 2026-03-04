@@ -60,6 +60,18 @@ function toSnakeCase(obj: unknown): unknown {
 }
 
 export async function fetchCourses(): Promise<Record<string, unknown>[]> {
+  // Try Supabase first (primary data source)
+  const { data: sbCourses } = await supabase
+    .from("courses")
+    .select("*")
+    .eq("is_published", true)
+    .order("created_at", { ascending: false });
+
+  if (sbCourses && sbCourses.length > 0) {
+    return sbCourses as unknown as Record<string, unknown>[];
+  }
+
+  // Fallback to Express API
   const res = await fetch(`${API_BASE}/courses`);
   if (!res.ok) return [];
   const json = await res.json();
@@ -68,48 +80,50 @@ export async function fetchCourses(): Promise<Record<string, unknown>[]> {
 }
 
 export async function fetchCourse(id: string): Promise<Record<string, unknown> | null> {
-  const res = await fetch(`${API_BASE}/courses/${id}`);
-  if (res.ok) {
-    const json = await res.json();
-    return toSnakeCase(json.data) as Record<string, unknown>;
-  }
-
+  // Try Supabase first (primary data source)
   const { data } = await supabase
     .from("courses")
     .select("*, modules(*, lessons(*))")
     .eq("id", id)
     .maybeSingle();
 
-  if (!data) return null;
+  if (data) {
+    const normalizedModules = (data.modules || []).map((module) => ({
+      ...module,
+      lessons: [...(module.lessons || [])].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)),
+    }));
+    normalizedModules.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    return { ...data, modules: normalizedModules } as unknown as Record<string, unknown>;
+  }
 
-  const normalizedModules = (data.modules || []).map((module) => ({
-    ...module,
-    lessons: [...(module.lessons || [])].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)),
-  }));
-
-  normalizedModules.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
-
-  return {
-    ...data,
-    modules: normalizedModules,
-  } as unknown as Record<string, unknown>;
-}
-
-export async function fetchLesson(id: string): Promise<Record<string, unknown> | null> {
-  const res = await fetch(`${API_BASE}/lessons/${id}`);
+  // Fallback to Express API
+  const res = await fetch(`${API_BASE}/courses/${id}`);
   if (res.ok) {
     const json = await res.json();
     return toSnakeCase(json.data) as Record<string, unknown>;
   }
 
+  return null;
+}
+
+export async function fetchLesson(id: string): Promise<Record<string, unknown> | null> {
+  // Try Supabase first (primary data source)
   const { data } = await supabase
     .from("lessons")
     .select("*, module:modules(id, title, course_id)")
     .eq("id", id)
     .maybeSingle();
 
-  if (!data) return null;
-  return data as unknown as Record<string, unknown>;
+  if (data) return data as unknown as Record<string, unknown>;
+
+  // Fallback to Express API
+  const res = await fetch(`${API_BASE}/lessons/${id}`);
+  if (res.ok) {
+    const json = await res.json();
+    return toSnakeCase(json.data) as Record<string, unknown>;
+  }
+
+  return null;
 }
 
 export async function enrollCourse(courseId: string, email: string): Promise<Record<string, unknown> | null> {

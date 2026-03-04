@@ -1,6 +1,5 @@
-import { useState, useMemo, isValidElement, useEffect, type ReactElement, type ReactNode } from "react";
+import { useState, useMemo, isValidElement, type ReactElement, type ReactNode } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
@@ -72,7 +71,7 @@ export default function LessonViewer() {
   const courseId = lesson?.module?.course_id;
   const { data: courseData } = useCourseQuery(courseId);
   const { data: progressData } = useCourseProgressQuery(
-    user?.email ?? undefined,
+    user?.id ?? undefined,
     courseId
   );
 
@@ -148,97 +147,28 @@ export default function LessonViewer() {
     if (!user || !lesson || completed) return;
     setCompleting(true);
     try {
-      if (user.email) {
-        try {
-          const apiResult = await completeLessonMutation.mutateAsync({
-            lessonId: lesson.id,
-            email: user.email,
-            courseId,
-          });
-          if (apiResult) {
-            const alreadyCompleted = !!(apiResult as any).already_completed;
-            const pointsEarned = Number((apiResult as any).points_earned || lesson.points_reward);
-            
-            if (!alreadyCompleted) {
-              // Show celebration animation
-              celebrateCompletion();
-              
-              toast({
-                title: `+${pointsEarned} XP!`,
-                description: "Lesson completed! 🎉",
-              });
-              
-              // Auto-navigate to next lesson after 5 seconds
-              setTimeout(() => {
-                handleNextLesson();
-              }, 3000);
-            } else {
-              toast({
-                title: "Already completed",
-                description: "This lesson was already completed.",
-              });
-            }
-            return;
-          }
-        } catch (apiErr) {
-          console.debug("API completion failed, trying Supabase fallback:", apiErr);
-        }
-      }
-
-      const { error: progressInsertError } = await supabase.from("lesson_progress").insert({
-        user_id: user.id,
-        lesson_id: lesson.id,
-        points_earned: lesson.points_reward,
+      const result = await completeLessonMutation.mutateAsync({
+        lessonId: lesson.id,
+        userId: user.id,
+        courseId,
+        pointsReward: lesson.points_reward,
       });
-      if (progressInsertError) throw progressInsertError;
 
-      const { data: profile } = await supabase.from("profiles").select("total_points, level").eq("user_id", user.id).maybeSingle();
-      if (profile) {
-        const newPoints = profile.total_points + lesson.points_reward;
-        const newLevel = Math.floor(newPoints / 500) + 1;
-        const { error: profileUpdateError } = await supabase
-          .from("profiles")
-          .update({ total_points: newPoints, level: newLevel })
-          .eq("user_id", user.id);
-        if (profileUpdateError) throw profileUpdateError;
+      if (result.alreadyCompleted) {
+        toast({
+          title: "Already completed",
+          description: "This lesson was already completed.",
+        });
+      } else {
+        celebrateCompletion();
+        toast({
+          title: `+${result.pointsEarned} XP!`,
+          description: "Lesson completed! 🎉",
+        });
+        setTimeout(() => {
+          handleNextLesson();
+        }, 3000);
       }
-
-      const courseIdVal = lesson.module?.course_id;
-      if (courseIdVal) {
-        const courseModules = await supabase.from("modules").select("id").eq("course_id", courseIdVal);
-        const allModuleIds = courseModules.data?.map((moduleRow) => moduleRow.id) || [];
-
-        const { data: courseLessons } = await supabase.from("lessons").select("id").in("module_id", allModuleIds);
-        const { data: completedLessons } = await supabase.from("lesson_progress").select("lesson_id").eq("user_id", user.id);
-
-        const totalLessons = courseLessons?.length || 1;
-        const completedInCourse = completedLessons?.filter((completedLesson) => courseLessons?.some((courseLesson) => courseLesson.id === completedLesson.lesson_id)).length || 0;
-        const progress = (completedInCourse / totalLessons) * 100;
-
-        const { error: enrollmentUpdateError } = await supabase
-          .from("enrollments")
-          .update({
-            progress_percentage: progress,
-            completed_at: progress >= 100 ? new Date().toISOString() : null,
-          })
-          .eq("user_id", user.id)
-          .eq("course_id", courseIdVal);
-
-        if (enrollmentUpdateError) throw enrollmentUpdateError;
-      }
-
-      // Show celebration animation
-      celebrateCompletion();
-      
-      toast({ 
-        title: `+${lesson.points_reward} XP!`, 
-        description: "Lesson completed! 🎉" 
-      });
-      
-      // Auto-navigate to next lesson after 5 seconds
-      setTimeout(() => {
-        handleNextLesson();
-      }, 5000);
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {

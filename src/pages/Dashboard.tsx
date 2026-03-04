@@ -52,7 +52,7 @@ export default function Dashboard() {
   const { user } = useAuth();
 
   const { data: profile } = useProfileQuery(user?.id);
-  const { data: rawEnrollments } = useEnrollmentsQuery(user?.email ?? undefined);
+  const { data: rawEnrollments } = useEnrollmentsQuery(user?.id ?? undefined);
   const { data: badges } = useBadgesQuery(user?.id);
   const { data: lessonsCompleted } = useLessonProgressQuery(user?.id);
 
