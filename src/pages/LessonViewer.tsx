@@ -58,6 +58,43 @@ function renderCodeBlock(children: ReactNode) {
   );
 }
 
+/**
+ * Normalises quiz content from two seed formats into the shape QuizSection expects:
+ *   { question: string; options: string[]; correctAnswer: number; explanation?: string }[]
+ *
+ * Format A (seed.ts / seed-course1.ts): content is a JSON array that already matches.
+ * Format B (seed-new-courses.ts): content is a JSON object
+ *   { title, passingScore, questions: [{ id, question, options: [{id,text}], correctAnswer: "a", explanation }] }
+ */
+function normalizeQuizQuestions(raw?: string) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    const letterToIndex: Record<string, number> = { a: 0, b: 1, c: 2, d: 3, e: 4, f: 5 };
+
+    // Extract the array of questions
+    const questions: any[] = Array.isArray(parsed)
+      ? parsed
+      : Array.isArray(parsed.questions)
+        ? parsed.questions
+        : [];
+
+    return questions.map((q: any) => ({
+      question: q.question ?? "",
+      options: Array.isArray(q.options)
+        ? q.options.map((o: any) => (typeof o === "string" ? o : o?.text ?? String(o)))
+        : [],
+      correctAnswer:
+        typeof q.correctAnswer === "number"
+          ? q.correctAnswer
+          : letterToIndex[String(q.correctAnswer).toLowerCase()] ?? 0,
+      explanation: q.explanation,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export default function LessonViewer() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -72,7 +109,8 @@ export default function LessonViewer() {
   const { data: courseData } = useCourseQuery(courseId);
   const { data: progressData } = useCourseProgressQuery(
     user?.id ?? undefined,
-    courseId
+    courseId,
+    user?.email
   );
 
   const completedLessonIds = useMemo(
@@ -152,6 +190,7 @@ export default function LessonViewer() {
         userId: user.id,
         courseId,
         pointsReward: lesson.points_reward,
+        email: user.email!,
       });
 
       if (result.alreadyCompleted) {
@@ -214,16 +253,17 @@ export default function LessonViewer() {
             {lesson.content_type === 'quiz' ? (
               // Render Quiz Section
               <QuizSection 
-                questions={lesson.content ? JSON.parse(lesson.content) : []}
+                questions={normalizeQuizQuestions(lesson.content)}
                 onComplete={(score) => {
                   // Auto-complete quiz if passing score (70%+)
-                  const questions = lesson.content ? JSON.parse(lesson.content) : [];
+                  const questions = normalizeQuizQuestions(lesson.content);
                   const percentage = Math.round((score / questions.length) * 100);
                   if (percentage >= 70 && !completed) {
                     handleComplete();
                   }
                 }}
                 pointsReward={lesson.points_reward}
+                onContinue={handleNextLesson}
               />
             ) : (
               // Render Regular Content

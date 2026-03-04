@@ -16,10 +16,11 @@ interface QuizQuestion {
 interface QuizSectionProps {
   questions: QuizQuestion[];
   onComplete?: (score: number) => void;
+  onContinue?: () => void;
   pointsReward?: number;
 }
 
-export function QuizSection({ questions, onComplete, pointsReward = 50 }: QuizSectionProps) {
+export function QuizSection({ questions, onComplete, onContinue, pointsReward = 50 }: QuizSectionProps) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -101,9 +102,16 @@ export function QuizSection({ questions, onComplete, pointsReward = 50 }: QuizSe
           </div>
           
           {!isPassing && (
-            <Button onClick={handleRetry} className="w-full" variant="outline">
-              Retry Quiz
-            </Button>
+            <div className="flex flex-col gap-2">
+              <Button onClick={handleRetry} className="w-full" variant="outline">
+                Retry Quiz
+              </Button>
+              {onContinue && (
+                <Button onClick={onContinue} className="w-full" variant="ghost">
+                  Continue without XP
+                </Button>
+              )}
+            </div>
           )}
         </CardContent>
       </Card>

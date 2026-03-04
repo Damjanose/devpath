@@ -53,7 +53,7 @@ export default function CourseDetail() {
   const course = courseData as unknown as Course | null;
   const modules = useMemo(() => (course?.modules || []) as Module[], [course]);
 
-  const { data: rawEnrollments } = useEnrollmentsQuery(user?.id ?? undefined);
+  const { data: rawEnrollments } = useEnrollmentsQuery(user?.id ?? undefined, user?.email);
   const enrollment = useMemo(() => {
     if (!rawEnrollments || !id) return null;
     return (rawEnrollments as Enrollment[]).find((e) => e.course_id === id) || null;
@@ -61,7 +61,8 @@ export default function CourseDetail() {
 
   const { data: progressData } = useCourseProgressQuery(
     user?.id ?? undefined,
-    id
+    id,
+    user?.email
   );
   const completedLessons = useMemo(
     () => new Set(progressData?.completed_lesson_ids || []),
@@ -80,7 +81,7 @@ export default function CourseDetail() {
   async function handleEnroll() {
     if (!user) { navigate("/login"); return; }
     try {
-      await enrollMutation.mutateAsync({ userId: user.id!, courseId: id! });
+      await enrollMutation.mutateAsync({ userId: user.id!, courseId: id!, email: user.email! });
       toast({ title: "Enrolled!", description: "You've been enrolled in this course." });
     } catch (err) {
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to enroll", variant: "destructive" });
