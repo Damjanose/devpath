@@ -1,4 +1,4 @@
-import { useState, useMemo, isValidElement, type ReactElement, type ReactNode } from "react";
+import { useState, useMemo, isValidElement, useEffect, type ReactElement, type ReactNode } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +14,8 @@ import { useLessonQuery } from "@/hooks/queries/useLessonQuery";
 import { useCourseQuery } from "@/hooks/queries/useCourseQuery";
 import { useCourseProgressQuery } from "@/hooks/queries/useCourseProgressQuery";
 import { useCompleteLessonMutation } from "@/hooks/mutations/useCompleteLessonMutation";
+import confetti from "canvas-confetti";
+import { QuizSection } from "@/components/QuizSection";
 
 interface Lesson {
   id: string;
@@ -22,6 +24,7 @@ interface Lesson {
   points_reward: number;
   sort_order: number;
   content?: string;
+  content_type?: string;
   module?: {
     id: string;
     title: string;
@@ -105,6 +108,42 @@ export default function LessonViewer() {
 
   const completeLessonMutation = useCompleteLessonMutation();
 
+  // Celebration animation
+  function celebrateCompletion() {
+    // Fire confetti from multiple angles
+    const duration = 1500;
+    const animationEnd = Date.now() + duration;
+    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
+
+    function randomInRange(min: number, max: number) {
+      return Math.random() * (max - min) + min;
+    }
+
+    const interval: any = setInterval(function() {
+      const timeLeft = animationEnd - Date.now();
+
+      if (timeLeft <= 0) {
+        return clearInterval(interval);
+      }
+
+      const particleCount = 50 * (timeLeft / duration);
+      
+      // Fire from left
+      confetti({
+        ...defaults,
+        particleCount,
+        origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }
+      });
+      
+      // Fire from right
+      confetti({
+        ...defaults,
+        particleCount,
+        origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }
+      });
+    }, 250);
+  }
+
   async function handleComplete() {
     if (!user || !lesson || completed) return;
     setCompleting(true);
@@ -119,10 +158,26 @@ export default function LessonViewer() {
           if (apiResult) {
             const alreadyCompleted = !!(apiResult as any).already_completed;
             const pointsEarned = Number((apiResult as any).points_earned || lesson.points_reward);
-            toast({
-              title: alreadyCompleted ? "Already completed" : `+${pointsEarned} XP!`,
-              description: alreadyCompleted ? "This lesson was already completed." : "Lesson completed!",
-            });
+            
+            if (!alreadyCompleted) {
+              // Show celebration animation
+              celebrateCompletion();
+              
+              toast({
+                title: `+${pointsEarned} XP!`,
+                description: "Lesson completed! 🎉",
+              });
+              
+              // Auto-navigate to next lesson after 5 seconds
+              setTimeout(() => {
+                handleNextLesson();
+              }, 5000);
+            } else {
+              toast({
+                title: "Already completed",
+                description: "This lesson was already completed.",
+              });
+            }
             return;
           }
         } catch (apiErr) {
@@ -172,7 +227,18 @@ export default function LessonViewer() {
         if (enrollmentUpdateError) throw enrollmentUpdateError;
       }
 
-      toast({ title: `+${lesson.points_reward} XP!`, description: "Lesson completed!" });
+      // Show celebration animation
+      celebrateCompletion();
+      
+      toast({ 
+        title: `+${lesson.points_reward} XP!`, 
+        description: "Lesson completed! 🎉" 
+      });
+      
+      // Auto-navigate to next lesson after 5 seconds
+      setTimeout(() => {
+        handleNextLesson();
+      }, 5000);
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -209,21 +275,38 @@ export default function LessonViewer() {
           </div>
 
           <div className="rounded-lg border border-border bg-card p-6">
-            <div className="prose prose-invert prose-green max-w-none prose-headings:text-foreground prose-p:text-foreground/90 prose-strong:text-foreground prose-code:text-primary prose-code:bg-secondary prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-li:text-foreground/90 prose-th:text-foreground prose-td:text-foreground/90 prose-hr:border-border">
-              {lesson.content ? (
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  rehypePlugins={[rehypeHighlight]}
-                  components={{
-                    pre: ({ children }) => renderCodeBlock(children),
-                  }}
-                >
-                  {lesson.content}
-                </ReactMarkdown>
-              ) : (
-                <p className="text-muted-foreground">No content available yet.</p>
-              )}
-            </div>
+            {lesson.content_type === 'quiz' ? (
+              // Render Quiz Section
+              <QuizSection 
+                questions={lesson.content ? JSON.parse(lesson.content) : []}
+                onComplete={(score) => {
+                  // Auto-complete quiz if passing score (70%+)
+                  const questions = lesson.content ? JSON.parse(lesson.content) : [];
+                  const percentage = Math.round((score / questions.length) * 100);
+                  if (percentage >= 70 && !completed) {
+                    handleComplete();
+                  }
+                }}
+                pointsReward={lesson.points_reward}
+              />
+            ) : (
+              // Render Regular Content
+              <div className="prose prose-invert prose-green max-w-none prose-headings:text-foreground prose-p:text-foreground/90 prose-strong:text-foreground prose-code:text-primary prose-code:bg-secondary prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-li:text-foreground/90 prose-th:text-foreground prose-td:text-foreground/90 prose-hr:border-border">
+                {lesson.content ? (
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[rehypeHighlight]}
+                    components={{
+                      pre: ({ children }) => renderCodeBlock(children),
+                    }}
+                  >
+                    {lesson.content}
+                  </ReactMarkdown>
+                ) : (
+                  <p className="text-muted-foreground">No content available yet.</p>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-3">
@@ -242,6 +325,9 @@ export default function LessonViewer() {
                   )}
                 </Button>
               </>
+            ) : lesson.content_type === 'quiz' ? (
+              // Quiz lessons are completed automatically when passing
+              null
             ) : (
               <Button variant="hero" onClick={handleComplete} disabled={completing}>
                 {completing ? "Completing..." : "Mark as Complete"}

@@ -571,6 +571,48 @@ module.exports = { parseDomain };`,
               "The TLD is always the last element, the domain is second-to-last, and everything before is subdomains.",
             ],
           },
+          {
+            title: "How the Web Works — Module Quiz",
+            contentType: "quiz" as const,
+            estimatedMinutes: 10,
+            pointsReward: 30,
+            content: JSON.stringify([
+              {
+                question: "What is the first step when a browser loads a web page?",
+                options: [
+                  "TCP Connection",
+                  "DNS Lookup",
+                  "HTTP Request",
+                  "Parsing HTML"
+                ],
+                correctAnswer: 1,
+                explanation: "The browser first performs a DNS lookup to translate the domain name into an IP address before establishing a connection."
+              },
+              {
+                question: "What HTTP status code indicates a successful response?",
+                options: ["404", "200", "301", "500"],
+                correctAnswer: 1,
+                explanation: "200 OK is the standard success status code. 404 means not found, 301 is redirect, and 500 is server error."
+              },
+              {
+                question: "What does DNS stand for?",
+                options: [
+                  "Digital Network System",
+                  "Domain Name System",
+                  "Data Network Service",
+                  "Dynamic Name Server"
+                ],
+                correctAnswer: 1,
+                explanation: "DNS (Domain Name System) translates human-readable domain names into IP addresses."
+              },
+              {
+                question: "Which DNS record type maps a domain to an IPv4 address?",
+                options: ["CNAME", "MX", "A", "AAAA"],
+                correctAnswer: 2,
+                explanation: "An A record maps a domain to an IPv4 address. AAAA is for IPv6, CNAME is for aliases, and MX is for mail servers."
+              }
+            ]),
+          },
         ],
       },
 
@@ -1009,6 +1051,53 @@ module.exports = { validateForm };`,
               "For each field, check required (empty string or undefined), minLength (value.length), and pattern (regex.test(value)).",
             ],
           },
+          {
+            title: "HTML Foundations — Module Quiz",
+            contentType: "quiz" as const,
+            estimatedMinutes: 10,
+            pointsReward: 30,
+            content: JSON.stringify([
+              {
+                question: "Which HTML element represents the main content of a page?",
+                options: ["<section>", "<main>", "<article>", "<div>"],
+                correctAnswer: 1,
+                explanation: "The <main> element contains the primary content of the page. There should be only one <main> per page."
+              },
+              {
+                question: "What is the purpose of semantic HTML?",
+                options: [
+                  "To make websites load faster",
+                  "To improve accessibility and SEO",
+                  "To reduce file size",
+                  "To add styling to elements"
+                ],
+                correctAnswer: 1,
+                explanation: "Semantic HTML improves accessibility for screen readers and helps search engines understand page structure, making content more discoverable."
+              },
+              {
+                question: "Which attribute makes a form input required?",
+                options: [
+                  "validate='true'",
+                  "required='required'",
+                  "required",
+                  "mandatory"
+                ],
+                correctAnswer: 2,
+                explanation: "The 'required' attribute (boolean attribute) makes an input field mandatory before form submission."
+              },
+              {
+                question: "What is the correct structure for an HTML5 document?",
+                options: [
+                  "<html><body></body></html>",
+                  "<!DOCTYPE html><html><head></head><body></body></html>",
+                  "<html><head></head></html>",
+                  "<body><html></html></body>"
+                ],
+                correctAnswer: 1,
+                explanation: "An HTML5 document starts with <!DOCTYPE html>, followed by <html>, containing <head> and <body> elements."
+              }
+            ]),
+          },
         ],
       },
 
@@ -1389,6 +1478,53 @@ test('card has flex property', () => {
               "For .card-grid, use flex-wrap: wrap. For .card, use flex: 1 1 250px so cards are at least 250px wide and wrap.",
             ],
           },
+          {
+            title: "CSS Fundamentals — Module Quiz",
+            contentType: "quiz" as const,
+            estimatedMinutes: 10,
+            pointsReward: 30,
+            content: JSON.stringify([
+              {
+                question: "Which CSS selector has the highest specificity?",
+                options: [
+                  "Element selector (p)",
+                  "Class selector (.card)",
+                  "ID selector (#hero)",
+                  "Universal selector (*)"
+                ],
+                correctAnswer: 2,
+                explanation: "ID selectors have the highest specificity (1-0-0), followed by class selectors (0-1-0), then element selectors (0-0-1)."
+              },
+              {
+                question: "What does box-sizing: border-box do?",
+                options: [
+                  "Adds borders to all elements",
+                  "Includes padding and border in the element's total width",
+                  "Removes borders from elements",
+                  "Makes borders thicker"
+                ],
+                correctAnswer: 1,
+                explanation: "box-sizing: border-box includes padding and border in the element's total width and height, making sizing more predictable."
+              },
+              {
+                question: "Which Flexbox property makes items wrap to the next line?",
+                options: [
+                  "flex-direction: wrap",
+                  "flex-wrap: wrap",
+                  "flex-flow: wrap",
+                  "wrap: true"
+                ],
+                correctAnswer: 1,
+                explanation: "flex-wrap: wrap allows flex items to wrap to multiple lines when they don't fit on one line."
+              },
+              {
+                question: "What is the default value of the position property?",
+                options: ["absolute", "relative", "static", "fixed"],
+                correctAnswer: 2,
+                explanation: "The default position value is 'static', which means elements follow the normal document flow."
+              }
+            ]),
+          },
         ],
       },
 
@@ -1606,6 +1742,53 @@ test('desktop has max-width', () => {
               "Give .sidebar a fixed width (250px) and .content flex: 1 at the tablet breakpoint.",
             ],
           },
+          {
+            title: "Responsive Design — Module Quiz",
+            contentType: "quiz" as const,
+            estimatedMinutes: 10,
+            pointsReward: 30,
+            content: JSON.stringify([
+              {
+                question: "What does mobile-first design mean?",
+                options: [
+                  "Designing only for mobile devices",
+                  "Starting with mobile styles and adding complexity for larger screens",
+                  "Making mobile versions after desktop",
+                  "Using only touch-friendly interfaces"
+                ],
+                correctAnswer: 1,
+                explanation: "Mobile-first means starting with base styles for small screens and progressively enhancing for larger screens using min-width media queries."
+              },
+              {
+                question: "Which media query targets screens 768px and wider?",
+                options: [
+                  "@media (width: 768px)",
+                  "@media (min-width: 768px)",
+                  "@media (max-width: 768px)",
+                  "@media screen-768"
+                ],
+                correctAnswer: 1,
+                explanation: "@media (min-width: 768px) applies styles to screens 768px and wider, which is the mobile-first approach."
+              },
+              {
+                question: "What is the viewport meta tag used for?",
+                options: [
+                  "Setting page background color",
+                  "Controlling zoom and scaling on mobile devices",
+                  "Loading external stylesheets",
+                  "Adding responsive images"
+                ],
+                correctAnswer: 1,
+                explanation: "The viewport meta tag controls how a page is displayed on mobile devices, typically set to width=device-width for responsive design."
+              },
+              {
+                question: "At what breakpoint does 'md' typically start in common CSS frameworks?",
+                options: ["640px", "768px", "1024px", "1280px"],
+                correctAnswer: 1,
+                explanation: "The 'md' (medium/tablet) breakpoint typically starts at 768px in frameworks like Tailwind CSS."
+              }
+            ]),
+          },
         ],
       },
 
@@ -1766,6 +1949,53 @@ module.exports = { createLogger };`,
               "Define an array of levels in order: ['debug', 'info', 'warn', 'error']. Compare indices to determine if a message should be logged.",
               "Use indexOf() to find the numeric priority of both the minimum level and the message level.",
             ],
+          },
+          {
+            title: "Developer Tooling — Module Quiz",
+            contentType: "quiz" as const,
+            estimatedMinutes: 10,
+            pointsReward: 30,
+            content: JSON.stringify([
+              {
+                question: "What keyboard shortcut opens Browser DevTools on Mac?",
+                options: [
+                  "Cmd + D",
+                  "Cmd + Shift + I",
+                  "Cmd + Option + I",
+                  "Cmd + K"
+                ],
+                correctAnswer: 2,
+                explanation: "Cmd + Option + I (or Cmd + Shift + I) opens the Browser DevTools on Mac. On Windows/Linux, it's Ctrl + Shift + I."
+              },
+              {
+                question: "Which DevTools panel shows network requests and loading times?",
+                options: ["Elements", "Console", "Network", "Application"],
+                correctAnswer: 2,
+                explanation: "The Network panel shows all HTTP requests, response times, status codes, and loading performance."
+              },
+              {
+                question: "What does console.table() do?",
+                options: [
+                  "Creates HTML tables",
+                  "Displays arrays of objects as formatted tables",
+                  "Calculates table data",
+                  "Exports data to Excel"
+                ],
+                correctAnswer: 1,
+                explanation: "console.table() displays arrays of objects in a nicely formatted table in the browser console, making data easier to read."
+              },
+              {
+                question: "Which VS Code shortcut opens the command palette on Mac?",
+                options: [
+                  "Cmd + P",
+                  "Cmd + Shift + P",
+                  "Cmd + K",
+                  "Cmd + /"
+                ],
+                correctAnswer: 1,
+                explanation: "Cmd + Shift + P opens the VS Code command palette, giving access to all commands. Cmd + P is for quick file open."
+              }
+            ]),
           },
         ],
       },

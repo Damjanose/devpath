@@ -107,6 +107,38 @@ module.exports = { parseURL };`,
             ],
           },
           {
+            title: "How the Web Works — Module Quiz",
+            contentType: "quiz" as const,
+            estimatedMinutes: 10,
+            pointsReward: 30,
+            content: JSON.stringify([
+              {
+                question: "What does DNS stand for?",
+                options: ["Domain Name System", "Dynamic Network Service", "Data Navigation System", "Digital Node Server"],
+                correctAnswer: 0,
+                explanation: "DNS (Domain Name System) translates domain names to IP addresses."
+              },
+              {
+                question: "Which HTTP status code indicates a successful response?",
+                options: ["404", "500", "200", "301"],
+                correctAnswer: 2,
+                explanation: "200 OK is the standard HTTP status code for a successful request."
+              },
+              {
+                question: "What is the DOM?",
+                options: ["Document Object Model", "Data Object Manager", "Digital Output Module", "Developer Operations Manager"],
+                correctAnswer: 0,
+                explanation: "The DOM (Document Object Model) is a tree representation of the HTML document."
+              },
+              {
+                question: "Which HTTP method is used to retrieve data?",
+                options: ["POST", "PUT", "GET", "DELETE"],
+                correctAnswer: 2,
+                explanation: "GET is the HTTP method used to retrieve data from a server."
+              }
+            ]),
+          },
+          {
             title: "The HTTP Request/Response Cycle",
             contentType: "text" as const,
             estimatedMinutes: 8,
@@ -222,6 +254,32 @@ test('uses footer', () => expect(html).toMatch(/<footer/));`,
               "Replace div.top-bar with <header>, div.content with <main>, div.bottom-bar with <footer>.",
             ],
           },
+          {
+            title: "HTML Foundations — Module Quiz",
+            contentType: "quiz" as const,
+            estimatedMinutes: 10,
+            pointsReward: 30,
+            content: JSON.stringify([
+              {
+                question: "Which HTML element represents the header of a document or section?",
+                options: ["<head>", "<header>", "<top>", "<title>"],
+                correctAnswer: 1,
+                explanation: "<header> is the semantic HTML element for headers. <head> contains metadata."
+              },
+              {
+                question: "What does semantic HTML mean?",
+                options: ["HTML that looks pretty", "HTML that uses meaningful element names", "HTML with CSS styles", "HTML that loads fast"],
+                correctAnswer: 1,
+                explanation: "Semantic HTML uses elements that clearly describe their meaning and purpose."
+              },
+              {
+                question: "Which element should contain the main content of a page?",
+                options: ["<content>", "<body>", "<main>", "<section>"],
+                correctAnswer: 2,
+                explanation: "<main> represents the dominant content of the body of a document."
+              }
+            ]),
+          },
         ],
       },
       {
@@ -269,6 +327,32 @@ test('single id', () => expect(calculateSpecificity('#hero')).toEqual([1,0,0]));
 module.exports = { calculateSpecificity };`,
             hints: ["Split selector by spaces, then split each token by #, ., : prefixes."],
           },
+          {
+            title: "CSS Fundamentals — Module Quiz",
+            contentType: "quiz" as const,
+            estimatedMinutes: 10,
+            pointsReward: 30,
+            content: JSON.stringify([
+              {
+                question: "What is CSS specificity?",
+                options: ["How fast CSS loads", "The order CSS rules are written", "How browsers determine which CSS rule applies", "The size of a CSS file"],
+                correctAnswer: 2,
+                explanation: "CSS specificity determines which CSS rule is applied when multiple rules target the same element."
+              },
+              {
+                question: "Which has the highest specificity?",
+                options: ["Element selector (p)", "Class selector (.card)", "ID selector (#hero)", "Universal selector (*)"],
+                correctAnswer: 2,
+                explanation: "ID selectors have the highest specificity among these options (1-0-0)."
+              },
+              {
+                question: "What does the CSS box model consist of?",
+                options: ["Margin, border, padding, content", "Width, height, color", "Display, position, float", "Top, right, bottom, left"],
+                correctAnswer: 0,
+                explanation: "The CSS box model consists of margin, border, padding, and content."
+              }
+            ]),
+          },
         ],
       },
       {
@@ -303,6 +387,32 @@ test('uses flex', () => expect(css).toMatch(/display.*flex/));`,
             solutionCode: `.layout { display: flex; flex-direction: column; }
 @media (min-width: 768px) { .layout { flex-direction: row; } .sidebar { width: 250px; } .content { flex: 1; } }`,
             hints: ["Start with flex-direction: column, switch to row at 768px."],
+          },
+          {
+            title: "Responsive Design — Module Quiz",
+            contentType: "quiz" as const,
+            estimatedMinutes: 10,
+            pointsReward: 30,
+            content: JSON.stringify([
+              {
+                question: "What is mobile-first design?",
+                options: ["Designing only for mobile", "Starting with mobile styles and enhancing for larger screens", "Making mobile apps", "Testing on mobile first"],
+                correctAnswer: 1,
+                explanation: "Mobile-first design starts with mobile styles as the base and progressively enhances for larger screens."
+              },
+              {
+                question: "Which CSS feature enables responsive design?",
+                options: ["Flexbox", "Grid", "Media queries", "All of the above"],
+                correctAnswer: 3,
+                explanation: "All three features are important for responsive design, with media queries being essential."
+              },
+              {
+                question: "What is a common breakpoint for tablet devices?",
+                options: ["320px", "768px", "1024px", "1440px"],
+                correctAnswer: 1,
+                explanation: "768px is a commonly used breakpoint for tablet-sized screens."
+              }
+            ]),
           },
         ],
       },
