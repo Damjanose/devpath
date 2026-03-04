@@ -8,6 +8,7 @@ interface CreateBadgeData {
   iconUrl?: string;
   conditionType: ConditionType;
   conditionValue: number;
+  courseId?: string;
   tier?: BadgeTier;
 }
 
@@ -17,6 +18,7 @@ interface UpdateBadgeData {
   iconUrl?: string;
   conditionType?: ConditionType;
   conditionValue?: number;
+  courseId?: string | null;
   tier?: BadgeTier;
 }
 
@@ -118,6 +120,15 @@ export const gamificationService = {
         case "lessons_completed":
           qualified = completedLessons >= badge.conditionValue;
           break;
+        case "course_completed": {
+          if (badge.courseId) {
+            const courseEnrollment = await prisma.enrollment.findFirst({
+              where: { userId, courseId: badge.courseId, completedAt: { not: null } },
+            });
+            qualified = !!courseEnrollment;
+          }
+          break;
+        }
         case "streak_days":
           // Deferred
           break;

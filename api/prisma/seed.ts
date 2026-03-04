@@ -2334,7 +2334,26 @@ module.exports = { createLogger };`,
   for (const badge of badges) {
     await prisma.badge.create({ data: badge });
   }
-  console.log(`  ✅ ${badges.length} badges created`);
+  console.log(`  ✅ ${badges.length} generic badges created`);
+
+  // Per-course completion badges
+  const allCourses = await prisma.course.findMany({
+    select: { id: true, title: true },
+    orderBy: { createdAt: "asc" },
+  });
+  for (const course of allCourses) {
+    await prisma.badge.create({
+      data: {
+        name: `${course.title} Graduate`,
+        description: `Complete the ${course.title} course.`,
+        conditionType: "course_completed",
+        conditionValue: 1,
+        courseId: course.id,
+        tier: "gold",
+      },
+    });
+  }
+  console.log(`  ✅ ${allCourses.length} course-completion badges created`);
 
   // ── Summary ─────────────────────────────────────────────────
   const courseCount = await prisma.course.count();

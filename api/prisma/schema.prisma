@@ -32,6 +32,7 @@ enum ConditionType {
   courses_completed
   lessons_completed
   streak_days
+  course_completed
 }
 
 enum BadgeTier {
@@ -101,6 +102,7 @@ model Course {
   creator     User?        @relation("CourseCreator", fields: [createdBy], references: [id])
   modules     Module[]
   enrollments Enrollment[]
+  badges      Badge[]
 
   @@map("courses")
 }
@@ -193,9 +195,11 @@ model Badge {
   iconUrl        String?       @map("icon_url")
   conditionType  ConditionType @map("condition_type")
   conditionValue Int           @map("condition_value")
+  courseId       String?       @map("course_id") @db.Uuid
   tier           BadgeTier     @default(bronze)
   createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz
 
+  course     Course?     @relation(fields: [courseId], references: [id], onDelete: SetNull)
   userBadges UserBadge[]
 
   @@map("badges")

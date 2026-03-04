@@ -185,6 +185,15 @@ export const lessonService = {
           case "lessons_completed":
             qualified = totalCompletedLessons >= badge.conditionValue;
             break;
+          case "course_completed": {
+            if (badge.courseId) {
+              const courseEnrollment = await tx.enrollment.findFirst({
+                where: { userId, courseId: badge.courseId, completedAt: { not: null } },
+              });
+              qualified = !!courseEnrollment;
+            }
+            break;
+          }
           case "streak_days":
             // Streak tracking deferred — skip for now
             break;
