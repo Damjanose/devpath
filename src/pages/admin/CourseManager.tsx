@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,22 +12,18 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, BookOpen } from "lucide-react";
+import { useAdminCoursesQuery, adminCoursesQueryKey } from "@/hooks/queries/useAdminCoursesQuery";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Tables } from "@/integrations/supabase/types";
 
 export default function CourseManager() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [courses, setCourses] = useState<Tables<"courses">[]>([]);
+  const queryClient = useQueryClient();
+  const { data: courses = [] } = useAdminCoursesQuery();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Tables<"courses"> | null>(null);
   const [form, setForm] = useState({ title: "", description: "", difficulty: "beginner", points_reward: 100, is_published: false });
-
-  useEffect(() => { loadCourses(); }, []);
-
-  async function loadCourses() {
-    const { data } = await supabase.from("courses").select("*").order("created_at", { ascending: false });
-    setCourses(data || []);
-  }
 
   function openCreate() {
     setEditing(null);
@@ -52,14 +48,14 @@ export default function CourseManager() {
     }
     toast({ title: editing ? "Course updated" : "Course created" });
     setOpen(false);
-    loadCourses();
+    queryClient.invalidateQueries({ queryKey: adminCoursesQueryKey });
   }
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this course?")) return;
     await supabase.from("courses").delete().eq("id", id);
     toast({ title: "Course deleted" });
-    loadCourses();
+    queryClient.invalidateQueries({ queryKey: adminCoursesQueryKey });
   }
 
   return (

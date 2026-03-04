@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { fetchCourses } from "@/lib/api";
+import { useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { CourseCard } from "@/components/CourseCard";
@@ -7,24 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { Search } from "lucide-react";
+import { useCoursesQuery } from "@/hooks/queries/useCoursesQuery";
 
 const FILTER_OPTIONS = ["All Categories", "Beginner", "Intermediate", "Advanced"] as const;
 
 export default function Courses() {
-  const [courses, setCourses] = useState<any[]>([]);
+  const { data: courses = [], isLoading: loading } = useCoursesQuery();
   const [search, setSearch] = useState("");
   const [difficulty, setDifficulty] = useState<string>("All Categories");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadCourses();
-  }, []);
-
-  async function loadCourses() {
-    const data = await fetchCourses();
-    setCourses(data);
-    setLoading(false);
-  }
 
   const filtered = courses.filter((c) => {
     const matchesSearch =

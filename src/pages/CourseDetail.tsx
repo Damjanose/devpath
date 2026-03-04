@@ -1,7 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
+import { useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { fetchCourse, enrollCourse, fetchEnrollmentsByEmail, fetchCourseProgressByEmail } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
@@ -10,6 +8,10 @@ import { motion } from "framer-motion";
 import { BookOpen, ChevronRight, Zap, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Footer } from "@/components/Footer";
+import { useCourseQuery } from "@/hooks/queries/useCourseQuery";
+import { useEnrollmentsQuery } from "@/hooks/queries/useEnrollmentsQuery";
+import { useCourseProgressQuery } from "@/hooks/queries/useCourseProgressQuery";
+import { useEnrollCourseMutation } from "@/hooks/mutations/useEnrollCourseMutation";
 
 interface Lesson {
   id: string;
@@ -46,11 +48,25 @@ export default function CourseDetail() {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [course, setCourse] = useState<Course | null>(null);
-  const [modules, setModules] = useState<Module[]>([]);
-  const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
-  const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
+
+  const { data: courseData, isLoading: loading } = useCourseQuery(id);
+  const course = courseData as unknown as Course | null;
+  const modules = useMemo(() => (course?.modules || []) as Module[], [course]);
+
+  const { data: rawEnrollments } = useEnrollmentsQuery(user?.email ?? undefined);
+  const enrollment = useMemo(() => {
+    if (!rawEnrollments || !id) return null;
+    return (rawEnrollments as Enrollment[]).find((e) => e.course_id === id) || null;
+  }, [rawEnrollments, id]);
+
+  const { data: progressData } = useCourseProgressQuery(
+    user?.email ?? undefined,
+    id
+  );
+  const completedLessons = useMemo(
+    () => new Set(progressData?.completed_lesson_ids || []),
+    [progressData]
+  );
 
   const totalLessons = modules.reduce((acc, m) => acc + m.lessons.length, 0);
   const completedCount = modules.reduce(
@@ -59,117 +75,12 @@ export default function CourseDetail() {
   );
   const computedProgress = totalLessons > 0 ? (completedCount / totalLessons) * 100 : 0;
 
-  const loadCompletedLessons = useCallback(async () => {
-    if (!user || !id) return;
-
-    try {
-      if (user.email) {
-        const apiProgress = await fetchCourseProgressByEmail(user.email, id);
-        if (apiProgress.completed_lesson_ids.length > 0 || apiProgress.progress_percentage > 0) {
-          setCompletedLessons(new Set(apiProgress.completed_lesson_ids));
-          setEnrollment((prev) => {
-            if (!prev) return prev;
-            return { ...prev, progress_percentage: apiProgress.progress_percentage };
-          });
-          return;
-        }
-      }
-
-      const progressRes = await supabase.from("lesson_progress").select("lesson_id").eq("user_id", user.id);
-      setCompletedLessons(new Set(progressRes.data?.map((p) => p.lesson_id) || []));
-    } catch (err) {
-      console.error("Failed to load progress:", err);
-    }
-  }, [user, id]);
-
-  const loadCourse = useCallback(async () => {
-    // Fetch course + modules + lessons from Express API
-    const courseData = await fetchCourse(id!);
-    if (courseData) {
-      setCourse(courseData as unknown as Course);
-      setModules((courseData.modules as unknown as Module[]) || []);
-    }
-
-    // Enrollment from cache or API
-    if (user) {
-      // Check localStorage first for guest enrollments
-      const cacheKey = `enrollments_${user.email}`;
-      const cachedEnrollments = JSON.parse(localStorage.getItem(cacheKey) || "[]") as Enrollment[];
-      const cachedCourseEnrollment = cachedEnrollments.find((e) => e.course_id === id);
-      
-      if (cachedCourseEnrollment) {
-        setEnrollment(cachedCourseEnrollment);
-      } else {
-        // Fetch from API using email (works for all users)
-        try {
-          const enrollments = await fetchEnrollmentsByEmail(user.email!);
-          const courseEnrollment = enrollments.find((e) => (e as Enrollment).course_id === id) as Enrollment | undefined;
-          if (courseEnrollment) {
-            setEnrollment(courseEnrollment);
-            // Cache it
-            cachedEnrollments.push(courseEnrollment);
-            localStorage.setItem(cacheKey, JSON.stringify(cachedEnrollments));
-          }
-        } catch (err) {
-          console.debug("Could not fetch enrollments from API:", err);
-        }
-      }
-      
-      // Progress via Supabase (user-specific data)
-      await loadCompletedLessons();
-    }
-    setLoading(false);
-  }, [id, user, loadCompletedLessons]);
-
-  useEffect(() => {
-    if (id) loadCourse();
-  }, [id, loadCourse]);
-
-  // Reload completed lessons when page becomes visible (e.g., after navigating back from a lesson)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        loadCompletedLessons();
-      }
-    };
-
-    const handleFocus = () => {
-      loadCompletedLessons();
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("focus", handleFocus);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("focus", handleFocus);
-    };
-  }, [loadCompletedLessons]);
+  const enrollMutation = useEnrollCourseMutation();
 
   async function handleEnroll() {
     if (!user) { navigate("/login"); return; }
     try {
-      const enrollmentData = await enrollCourse(id!, user.email!);
-      
-      // Store enrollment in localStorage for offline access
-      const cacheKey = `enrollments_${user.email}`;
-      const cachedEnrollments = JSON.parse(localStorage.getItem(cacheKey) || "[]") as Enrollment[];
-      
-      // Convert camelCase from API to snake_case for consistency
-      const enrollmentWithCourseId: Enrollment = {
-        ...(enrollmentData as Enrollment),
-        course_id: id!,
-        progress_percentage: 0,
-      };
-      
-      // Avoid duplicates
-      const filtered = cachedEnrollments.filter((e) => e.course_id !== id);
-      filtered.push(enrollmentWithCourseId);
-      localStorage.setItem(cacheKey, JSON.stringify(filtered));
-      
-      // Update state immediately
-      setEnrollment(enrollmentWithCourseId);
-      
+      await enrollMutation.mutateAsync({ courseId: id!, email: user.email! });
       toast({ title: "Enrolled!", description: "You've been enrolled in this course." });
     } catch (err) {
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to enroll", variant: "destructive" });

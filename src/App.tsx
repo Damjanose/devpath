@@ -21,7 +21,15 @@ const BadgeManager = lazy(() => import("./pages/admin/BadgeManager"));
 const CourseEditor = lazy(() => import("./pages/admin/CourseEditor"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 2, // 2 minutes
+      refetchOnWindowFocus: true,
+      retry: 1,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

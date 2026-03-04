@@ -1,7 +1,6 @@
-import { useEffect, useState, isValidElement, type ReactElement, type ReactNode } from "react";
+import { useState, useMemo, isValidElement, type ReactElement, type ReactNode } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchLesson, fetchCourse, fetchCourseProgressByEmail, completeLessonByEmail } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,10 @@ import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
+import { useLessonQuery } from "@/hooks/queries/useLessonQuery";
+import { useCourseQuery } from "@/hooks/queries/useCourseQuery";
+import { useCourseProgressQuery } from "@/hooks/queries/useCourseProgressQuery";
+import { useCompleteLessonMutation } from "@/hooks/mutations/useCompleteLessonMutation";
 
 interface Lesson {
   id: string;
@@ -58,44 +61,27 @@ export default function LessonViewer() {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [lesson, setLesson] = useState<Lesson | null>(null);
-  const [completed, setCompleted] = useState(false);
   const [completing, setCompleting] = useState(false);
-  const [nextLessonId, setNextLessonId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (id && user) loadLesson();
-  }, [id, user]);
+  const { data: lessonData } = useLessonQuery(id);
+  const lesson = lessonData as unknown as Lesson | null;
 
-  async function loadLesson() {
-    const [lessonData, progressRes] = await Promise.all([
-      fetchLesson(id!),
-      supabase.from("lesson_progress").select("id").eq("user_id", user!.id).eq("lesson_id", id!).maybeSingle(),
-    ]);
-    const lessonRecord = lessonData as unknown as Lesson;
-    setLesson(lessonRecord);
-    setCompleted(!!progressRes.data);
+  const courseId = lesson?.module?.course_id;
+  const { data: courseData } = useCourseQuery(courseId);
+  const { data: progressData } = useCourseProgressQuery(
+    user?.email ?? undefined,
+    courseId
+  );
 
-    if (user?.email && lessonRecord?.module?.course_id) {
-      const apiProgress = await fetchCourseProgressByEmail(user.email, lessonRecord.module.course_id);
-      if (apiProgress.completed_lesson_ids.includes(lessonRecord.id)) {
-        setCompleted(true);
-      }
-    }
+  const completedLessonIds = useMemo(
+    () => new Set(progressData?.completed_lesson_ids || []),
+    [progressData]
+  );
+  const completed = lesson ? completedLessonIds.has(lesson.id) : false;
 
-    // Fetch course to find next lesson
-    if (lessonRecord) {
-      const courseData = await fetchCourse(lessonRecord.module?.course_id || "");
-      if (courseData) {
-        findNextLesson(courseData, lessonRecord);
-      }
-    }
-  }
-
-  function findNextLesson(courseData: any, currentLesson: Lesson) {
-    const modules = courseData.modules || [];
-    
-    // Flatten all lessons with their order
+  const nextLessonId = useMemo(() => {
+    if (!courseData || !lesson) return null;
+    const modules = (courseData as any).modules || [];
     const allLessons: Array<{ id: string; moduleOrder: number; lessonOrder: number }> = [];
     modules.forEach((mod: any, modIndex: number) => {
       mod.lessons?.forEach((les: any) => {
@@ -106,19 +92,18 @@ export default function LessonViewer() {
         });
       });
     });
-
-    // Sort by module order, then lesson order
     allLessons.sort((a, b) => {
       if (a.moduleOrder !== b.moduleOrder) return a.moduleOrder - b.moduleOrder;
       return a.lessonOrder - b.lessonOrder;
     });
-
-    // Find current lesson index
-    const currentIndex = allLessons.findIndex((l) => l.id === currentLesson.id);
+    const currentIndex = allLessons.findIndex((l) => l.id === lesson.id);
     if (currentIndex >= 0 && currentIndex < allLessons.length - 1) {
-      setNextLessonId(allLessons[currentIndex + 1].id);
+      return allLessons[currentIndex + 1].id;
     }
-  }
+    return null;
+  }, [courseData, lesson]);
+
+  const completeLessonMutation = useCompleteLessonMutation();
 
   async function handleComplete() {
     if (!user || !lesson || completed) return;
@@ -126,11 +111,14 @@ export default function LessonViewer() {
     try {
       if (user.email) {
         try {
-          const apiResult = await completeLessonByEmail(lesson.id, user.email);
+          const apiResult = await completeLessonMutation.mutateAsync({
+            lessonId: lesson.id,
+            email: user.email,
+            courseId,
+          });
           if (apiResult) {
-            setCompleted(true);
-            const alreadyCompleted = !!apiResult.already_completed;
-            const pointsEarned = Number(apiResult.points_earned || lesson.points_reward);
+            const alreadyCompleted = !!(apiResult as any).already_completed;
+            const pointsEarned = Number((apiResult as any).points_earned || lesson.points_reward);
             toast({
               title: alreadyCompleted ? "Already completed" : `+${pointsEarned} XP!`,
               description: alreadyCompleted ? "This lesson was already completed." : "Lesson completed!",
@@ -160,9 +148,9 @@ export default function LessonViewer() {
         if (profileUpdateError) throw profileUpdateError;
       }
 
-      const courseId = lesson.module?.course_id;
-      if (courseId) {
-        const courseModules = await supabase.from("modules").select("id").eq("course_id", courseId);
+      const courseIdVal = lesson.module?.course_id;
+      if (courseIdVal) {
+        const courseModules = await supabase.from("modules").select("id").eq("course_id", courseIdVal);
         const allModuleIds = courseModules.data?.map((moduleRow) => moduleRow.id) || [];
 
         const { data: courseLessons } = await supabase.from("lessons").select("id").in("module_id", allModuleIds);
@@ -179,12 +167,11 @@ export default function LessonViewer() {
             completed_at: progress >= 100 ? new Date().toISOString() : null,
           })
           .eq("user_id", user.id)
-          .eq("course_id", courseId);
+          .eq("course_id", courseIdVal);
 
         if (enrollmentUpdateError) throw enrollmentUpdateError;
       }
 
-      setCompleted(true);
       toast({ title: `+${lesson.points_reward} XP!`, description: "Lesson completed!" });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -197,7 +184,6 @@ export default function LessonViewer() {
     if (nextLessonId) {
       navigate(`/lessons/${nextLessonId}`);
     } else {
-      // Go back to course if no next lesson
       if (lesson?.module?.course_id) {
         navigate(`/courses/${lesson.module.course_id}`);
       } else {

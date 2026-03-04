@@ -1,31 +1,11 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Navbar } from "@/components/Navbar";
 import { motion } from "framer-motion";
 import { BookOpen, Award, Users, BarChart3 } from "lucide-react";
+import { useAdminStatsQuery } from "@/hooks/queries/useAdminStatsQuery";
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({ courses: 0, badges: 0, users: 0, enrollments: 0 });
-
-  useEffect(() => {
-    loadStats();
-  }, []);
-
-  async function loadStats() {
-    const [c, b, p, e] = await Promise.all([
-      supabase.from("courses").select("id", { count: "exact", head: true }),
-      supabase.from("badges").select("id", { count: "exact", head: true }),
-      supabase.from("profiles").select("id", { count: "exact", head: true }),
-      supabase.from("enrollments").select("id", { count: "exact", head: true }),
-    ]);
-    setStats({
-      courses: c.count || 0,
-      badges: b.count || 0,
-      users: p.count || 0,
-      enrollments: e.count || 0,
-    });
-  }
+  const { data: stats = { courses: 0, badges: 0, users: 0, enrollments: 0 } } = useAdminStatsQuery();
 
   const cards = [
     { label: "Courses", count: stats.courses, icon: BookOpen, link: "/admin/courses", color: "text-primary" },

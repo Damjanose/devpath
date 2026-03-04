@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Navbar } from "@/components/Navbar";
@@ -26,10 +26,11 @@ import {
   Clock,
   Save,
 } from "lucide-react";
+import { useCourseEditorQuery, courseEditorQueryKey, type ModuleWithLessons } from "@/hooks/queries/useCourseEditorQuery";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Tables } from "@/integrations/supabase/types";
 
 /* ---------- types ---------- */
-type Module = Tables<"modules"> & { lessons: Tables<"lessons">[] };
 
 const contentTypeIcons: Record<string, React.ReactNode> = {
   text: <FileText className="h-4 w-4" />,
@@ -43,12 +44,13 @@ const contentTypeIcons: Record<string, React.ReactNode> = {
 export default function CourseEditor() {
   const { id: courseId } = useParams<{ id: string }>();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  // course metadata
-  const [course, setCourse] = useState<Tables<"courses"> | null>(null);
+  const { data, isLoading: loading } = useCourseEditorQuery(courseId);
+  const course = data?.course ?? null;
+  const modules = data?.modules ?? [];
 
-  // modules + lessons
-  const [modules, setModules] = useState<Module[]>([]);
+  // module + lesson expanded state
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
 
   // module dialog
@@ -68,30 +70,11 @@ export default function CourseEditor() {
     estimated_minutes: 8,
   });
 
-  const [loading, setLoading] = useState(true);
-
-  /* ---------- data loading ---------- */
-  const load = useCallback(async () => {
-    if (!courseId) return;
-    const [courseRes, modulesRes] = await Promise.all([
-      supabase.from("courses").select("*").eq("id", courseId).maybeSingle(),
-      supabase
-        .from("modules")
-        .select("*, lessons(*)")
-        .eq("course_id", courseId)
-        .order("sort_order"),
-    ]);
-    setCourse(courseRes.data);
-    const mods = (modulesRes.data as Module[]) || [];
-    // sort lessons within each module
-    mods.forEach((m) => m.lessons.sort((a, b) => a.sort_order - b.sort_order));
-    setModules(mods);
-    setLoading(false);
-  }, [courseId]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  function invalidate() {
+    if (courseId) {
+      queryClient.invalidateQueries({ queryKey: courseEditorQueryKey(courseId) });
+    }
+  }
 
   /* ---------- expand / collapse ---------- */
   function toggleModule(moduleId: string) {
@@ -148,7 +131,7 @@ export default function CourseEditor() {
       toast({ title: "Module created" });
     }
     setModuleDialogOpen(false);
-    load();
+    invalidate();
   }
 
   async function deleteModule(moduleId: string) {
@@ -157,7 +140,7 @@ export default function CourseEditor() {
     await supabase.from("lessons").delete().eq("module_id", moduleId);
     await supabase.from("modules").delete().eq("id", moduleId);
     toast({ title: "Module deleted" });
-    load();
+    invalidate();
   }
 
   async function moveModule(moduleId: string, direction: "up" | "down") {
@@ -170,7 +153,7 @@ export default function CourseEditor() {
       supabase.from("modules").update({ sort_order: idx }).eq("id", modules[swapIdx].id),
     ];
     await Promise.all(updates);
-    load();
+    invalidate();
   }
 
   /* ============================================================== */
@@ -243,7 +226,7 @@ export default function CourseEditor() {
       toast({ title: "Lesson created" });
     }
     setLessonDialogOpen(false);
-    load();
+    invalidate();
   }
 
   async function deleteLesson(lessonId: string) {
@@ -252,7 +235,7 @@ export default function CourseEditor() {
     await supabase.from("lesson_progress").delete().eq("lesson_id", lessonId);
     await supabase.from("lessons").delete().eq("id", lessonId);
     toast({ title: "Lesson deleted" });
-    load();
+    invalidate();
   }
 
   async function moveLesson(lesson: Tables<"lessons">, direction: "up" | "down") {
@@ -268,7 +251,7 @@ export default function CourseEditor() {
       supabase.from("lessons").update({ sort_order: swapIdx }).eq("id", lessons[idx].id),
       supabase.from("lessons").update({ sort_order: idx }).eq("id", lessons[swapIdx].id),
     ]);
-    load();
+    invalidate();
   }
 
   /* ---------- derived stats ---------- */

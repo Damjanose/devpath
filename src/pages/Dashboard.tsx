@@ -1,8 +1,6 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { fetchEnrollmentsByEmail } from "@/lib/api";
 import { Navbar } from "@/components/Navbar";
 import { XPBar } from "@/components/XPBar";
 import { CourseCard } from "@/components/CourseCard";
@@ -10,7 +8,10 @@ import { BadgeCard } from "@/components/BadgeCard";
 import { motion } from "framer-motion";
 import { BookOpen, Trophy, Zap, Target } from "lucide-react";
 import { Footer } from "@/components/Footer";
-import type { Tables } from "@/integrations/supabase/types";
+import { useProfileQuery } from "@/hooks/queries/useProfileQuery";
+import { useEnrollmentsQuery } from "@/hooks/queries/useEnrollmentsQuery";
+import { useBadgesQuery } from "@/hooks/queries/useBadgesQuery";
+import { useLessonProgressQuery } from "@/hooks/queries/useLessonProgressQuery";
 
 type DashboardEnrollment = {
   id: string;
@@ -49,43 +50,18 @@ function normalizeEnrollment(raw: Record<string, unknown>): DashboardEnrollment 
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<Tables<"profiles"> | null>(null);
-  const [enrollments, setEnrollments] = useState<DashboardEnrollment[]>([]);
-  const [badges, setBadges] = useState<(Tables<"user_badges"> & { badges: Tables<"badges"> | null })[]>([]);
-  const [stats, setStats] = useState({ lessonsCompleted: 0, coursesEnrolled: 0 });
 
-  useEffect(() => {
-    if (!user) return;
-    loadDashboard();
-  }, [user]);
+  const { data: profile } = useProfileQuery(user?.id);
+  const { data: rawEnrollments } = useEnrollmentsQuery(user?.email ?? undefined);
+  const { data: badges } = useBadgesQuery(user?.id);
+  const { data: lessonsCompleted } = useLessonProgressQuery(user?.id);
 
-  async function loadDashboard() {
-    const cacheKey = `enrollments_${user!.email}`;
-    const cachedEnrollments = (JSON.parse(localStorage.getItem(cacheKey) || "[]") as Record<string, unknown>[])
+  const enrollments = useMemo(() => {
+    if (!rawEnrollments) return [];
+    return (rawEnrollments as Record<string, unknown>[])
       .map(normalizeEnrollment)
       .filter((e): e is DashboardEnrollment => !!e);
-
-    const [profileRes, apiEnrollments, badgeRes, progressRes] = await Promise.all([
-      supabase.from("profiles").select("*").eq("user_id", user!.id).maybeSingle(),
-      fetchEnrollmentsByEmail(user!.email || ""),
-      supabase.from("user_badges").select("*, badges(*)").eq("user_id", user!.id),
-      supabase.from("lesson_progress").select("id").eq("user_id", user!.id),
-    ]);
-
-    const normalizedApiEnrollments = (apiEnrollments as Record<string, unknown>[])
-      .map(normalizeEnrollment)
-      .filter((e): e is DashboardEnrollment => !!e);
-
-    const finalEnrollments = normalizedApiEnrollments.length > 0 ? normalizedApiEnrollments : cachedEnrollments;
-
-    setProfile(profileRes.data);
-    setEnrollments(finalEnrollments);
-    setBadges((badgeRes.data as any) || []);
-    setStats({
-      lessonsCompleted: progressRes.data?.length || 0,
-      coursesEnrolled: finalEnrollments.length,
-    });
-  }
+  }, [rawEnrollments]);
 
   const level = profile?.level || 1;
   const totalPoints = profile?.total_points || 0;
@@ -108,8 +84,8 @@ export default function Dashboard() {
           {[
             { icon: Zap, label: "Total XP", value: totalPoints, color: "text-primary" },
             { icon: Trophy, label: "Level", value: level, color: "text-gold" },
-            { icon: BookOpen, label: "Courses", value: stats.coursesEnrolled, color: "text-cyber-blue" },
-            { icon: Target, label: "Lessons Done", value: stats.lessonsCompleted, color: "text-cyber-purple" },
+            { icon: BookOpen, label: "Courses", value: enrollments.length, color: "text-cyber-blue" },
+            { icon: Target, label: "Lessons Done", value: lessonsCompleted ?? 0, color: "text-cyber-purple" },
           ].map((stat, i) => (
             <motion.div
               key={stat.label}
@@ -148,11 +124,11 @@ export default function Dashboard() {
 
         <section className="space-y-4">
           <h2 className="text-xl font-semibold text-foreground">Badges</h2>
-          {badges.length === 0 ? (
+          {(badges ?? []).length === 0 ? (
             <p className="text-muted-foreground text-sm">Complete lessons and courses to earn badges!</p>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-              {badges.map((ub) => ub.badges && (
+              {(badges ?? []).map((ub: any) => ub.badges && (
                 <BadgeCard key={ub.id} name={ub.badges.name} description={ub.badges.description} tier={ub.badges.tier} earned />
               ))}
             </div>

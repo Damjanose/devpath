@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
@@ -10,20 +10,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { BadgeCard } from "@/components/BadgeCard";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2 } from "lucide-react";
-import type { Tables } from "@/integrations/supabase/types";
+import { useAdminBadgesQuery, adminBadgesQueryKey } from "@/hooks/queries/useAdminBadgesQuery";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function BadgeManager() {
   const { toast } = useToast();
-  const [badges, setBadges] = useState<Tables<"badges">[]>([]);
+  const queryClient = useQueryClient();
+  const { data: badges = [] } = useAdminBadgesQuery();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: "", description: "", condition_type: "points_total", condition_value: 100, tier: "bronze" });
-
-  useEffect(() => { loadBadges(); }, []);
-
-  async function loadBadges() {
-    const { data } = await supabase.from("badges").select("*").order("condition_value");
-    setBadges(data || []);
-  }
 
   async function handleSave() {
     if (!form.name.trim()) { toast({ title: "Name required", variant: "destructive" }); return; }
@@ -32,14 +27,14 @@ export default function BadgeManager() {
     toast({ title: "Badge created" });
     setOpen(false);
     setForm({ name: "", description: "", condition_type: "points_total", condition_value: 100, tier: "bronze" });
-    loadBadges();
+    queryClient.invalidateQueries({ queryKey: adminBadgesQueryKey });
   }
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this badge?")) return;
     await supabase.from("badges").delete().eq("id", id);
     toast({ title: "Badge deleted" });
-    loadBadges();
+    queryClient.invalidateQueries({ queryKey: adminBadgesQueryKey });
   }
 
   return (

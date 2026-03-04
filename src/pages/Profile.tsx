@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { Navbar } from "@/components/Navbar";
 import { XPBar } from "@/components/XPBar";
 import { BadgeCard } from "@/components/BadgeCard";
@@ -11,45 +10,36 @@ import { Label } from "@/components/ui/label";
 import { motion } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { Footer } from "@/components/Footer";
-import type { Tables } from "@/integrations/supabase/types";
+import { useProfileQuery } from "@/hooks/queries/useProfileQuery";
+import { useBadgesQuery } from "@/hooks/queries/useBadgesQuery";
+import { useUpdateProfileMutation } from "@/hooks/mutations/useUpdateProfileMutation";
 
 export default function Profile() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [profile, setProfile] = useState<Tables<"profiles"> | null>(null);
-  const [badges, setBadges] = useState<(Tables<"user_badges"> & { badges: Tables<"badges"> | null })[]>([]);
+
+  const { data: profile } = useProfileQuery(user?.id);
+  const { data: badges } = useBadgesQuery(user?.id);
+  const updateProfile = useUpdateProfileMutation(user?.id);
+
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
-  const [saving, setSaving] = useState(false);
 
+  // Sync form fields when profile data loads
   useEffect(() => {
-    if (user) loadProfile();
-  }, [user]);
-
-  async function loadProfile() {
-    const [profileRes, badgeRes] = await Promise.all([
-      supabase.from("profiles").select("*").eq("user_id", user!.id).maybeSingle(),
-      supabase.from("user_badges").select("*, badges(*)").eq("user_id", user!.id),
-    ]);
-    if (profileRes.data) {
-      setProfile(profileRes.data);
-      setDisplayName(profileRes.data.display_name || "");
-      setBio(profileRes.data.bio || "");
+    if (profile) {
+      setDisplayName(profile.display_name || "");
+      setBio(profile.bio || "");
     }
-    setBadges((badgeRes.data as any) || []);
-  }
+  }, [profile]);
 
   async function handleSave() {
-    if (!user) return;
-    setSaving(true);
-    const { error } = await supabase.from("profiles").update({ display_name: displayName, bio }).eq("user_id", user.id);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
+    try {
+      await updateProfile.mutateAsync({ displayName, bio });
       toast({ title: "Profile updated!" });
-      loadProfile();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
-    setSaving(false);
   }
 
   const level = profile?.level || 1;
@@ -73,18 +63,18 @@ export default function Profile() {
             <Label>Bio</Label>
             <Textarea value={bio} onChange={(e) => setBio(e.target.value)} className="bg-secondary border-border" rows={3} />
           </div>
-          <Button variant="hero" onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save Profile"}
+          <Button variant="hero" onClick={handleSave} disabled={updateProfile.isPending}>
+            {updateProfile.isPending ? "Saving..." : "Save Profile"}
           </Button>
         </div>
 
         <section className="space-y-4">
           <h2 className="text-xl font-semibold text-foreground">Earned Badges</h2>
-          {badges.length === 0 ? (
+          {(badges ?? []).length === 0 ? (
             <p className="text-muted-foreground text-sm">No badges earned yet. Keep learning!</p>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {badges.map((ub) => ub.badges && (
+              {(badges ?? []).map((ub: any) => ub.badges && (
                 <BadgeCard key={ub.id} name={ub.badges.name} description={ub.badges.description} tier={ub.badges.tier} earned />
               ))}
             </div>
