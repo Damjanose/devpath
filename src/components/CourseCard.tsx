@@ -50,8 +50,8 @@ export function CourseCard({ id, title, description, difficulty, pointsReward, p
             </div>
             <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
               <div
-                className="h-full rounded-full gradient-neon transition-all progress-bar"
-                style={{ "--progress-width": `${progress}%` } as React.CSSProperties}
+                className="h-full rounded-full gradient-neon transition-all"
+                style={{ width: `${progress}%` }}
               />
             </div>
           </div>
