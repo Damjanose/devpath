@@ -104,7 +104,7 @@ export default function Index() {
       {/* Hero */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 scanline pointer-events-none" />
-        <div className="container py-24 md:py-36 relative">
+        <div className="container px-4 sm:px-6 lg:px-8 py-16 sm:py-24 md:py-36 relative">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             {/* Left — Copy */}
             <motion.div
@@ -117,7 +117,7 @@ export default function Index() {
                 <Terminal className="h-3 w-3" /> Gamified developer education
               </div>
 
-              <h1 className="text-5xl md:text-7xl font-bold leading-[1.1]">
+              <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold leading-[1.1]">
                 Level up your
                 <br />
                 <span className="text-primary text-glow">dev skills.</span>
@@ -129,15 +129,15 @@ export default function Index() {
                 beginner to senior engineer.
               </p>
 
-              <div className="flex items-center gap-4 pt-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 pt-2">
                 <Link to={primaryCtaPath}>
-                  <Button variant="hero" size="lg" className="text-base">
+                  <Button variant="hero" size="lg" className="text-base w-full sm:w-auto">
                     Start Learning Free{" "}
                     <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
                 </Link>
                 <a href="#how-it-works">
-                  <Button variant="neon" size="lg" className="text-base">
+                  <Button variant="neon" size="lg" className="text-base w-full sm:w-auto">
                     See How It Works
                   </Button>
                 </a>
