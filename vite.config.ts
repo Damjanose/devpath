@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
-    allowedHosts: ["devpath-ascend.onrender.com"],
+    allowedHosts: ["devpath.onrender.com"],
     hmr: {
       overlay: false,
     },
