@@ -15,6 +15,7 @@ import { useCourseProgressQuery } from "@/hooks/queries/useCourseProgressQuery";
 import { useCompleteLessonMutation } from "@/hooks/mutations/useCompleteLessonMutation";
 import confetti from "canvas-confetti";
 import { QuizSection } from "@/components/QuizSection";
+import { CodingChallenge } from "@/components/CodingChallenge";
 
 interface Lesson {
   id: string;
@@ -24,6 +25,12 @@ interface Lesson {
   sort_order: number;
   content?: string;
   content_type?: string;
+  starter_code?: string;
+  test_code?: string;
+  solution_code?: string;
+  language?: string;
+  hints?: string[];
+  bonus_points?: number;
   module?: {
     id: string;
     title: string;
@@ -250,7 +257,22 @@ export default function LessonViewer() {
           </div>
 
           <div className="rounded-lg border border-border bg-card p-6">
-            {lesson.content_type === 'quiz' ? (
+            {lesson.content_type === 'coding_challenge' ? (
+              // Render Coding Challenge
+              <CodingChallenge
+                description={lesson.content}
+                starterCode={lesson.starter_code}
+                testCode={lesson.test_code}
+                solutionCode={lesson.solution_code}
+                language={lesson.language}
+                hints={lesson.hints}
+                bonusPoints={lesson.bonus_points}
+                pointsReward={lesson.points_reward}
+                onPass={() => {
+                  if (!completed) handleComplete();
+                }}
+              />
+            ) : lesson.content_type === 'quiz' ? (
               // Render Quiz Section
               <QuizSection 
                 questions={normalizeQuizQuestions(lesson.content)}
@@ -266,7 +288,7 @@ export default function LessonViewer() {
                 onContinue={handleNextLesson}
               />
             ) : (
-              // Render Regular Content
+              // Render Regular Content with enhanced markdown
               <div className="prose prose-invert prose-green max-w-none prose-headings:text-foreground prose-p:text-foreground/90 prose-strong:text-foreground prose-code:text-primary prose-code:bg-secondary prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-li:text-foreground/90 prose-th:text-foreground prose-td:text-foreground/90 prose-hr:border-border">
                 {lesson.content ? (
                   <ReactMarkdown
@@ -274,6 +296,47 @@ export default function LessonViewer() {
                     rehypePlugins={[rehypeHighlight]}
                     components={{
                       pre: ({ children }) => renderCodeBlock(children),
+                      blockquote: ({ children }) => (
+                        <div className="not-prose my-4 flex gap-3 rounded-lg border-l-4 border-primary bg-primary/5 p-4">
+                          <span className="text-primary text-lg leading-none">💡</span>
+                          <div className="text-sm text-foreground/90 [&>p]:m-0">{children}</div>
+                        </div>
+                      ),
+                      h2: ({ children }) => (
+                        <h2 className="text-2xl font-bold mt-8 mb-3 flex items-center gap-2">
+                          <span className="inline-block w-1 h-6 rounded-full bg-primary" />
+                          {children}
+                        </h2>
+                      ),
+                      h3: ({ children }) => (
+                        <h3 className="text-lg font-semibold mt-6 mb-2 text-foreground">{children}</h3>
+                      ),
+                      ul: ({ children }) => (
+                        <ul className="my-4 space-y-2 list-none pl-0">{children}</ul>
+                      ),
+                      ol: ({ children }) => (
+                        <ol className="my-4 space-y-2 list-decimal pl-5">{children}</ol>
+                      ),
+                      li: ({ children }) => (
+                        <li className="flex items-start gap-2 pl-0">
+                          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary/70" />
+                          <span>{children}</span>
+                        </li>
+                      ),
+                      hr: () => (
+                        <hr className="my-8 border-none h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+                      ),
+                      table: ({ children }) => (
+                        <div className="my-5 overflow-x-auto rounded-lg border border-border">
+                          <table className="w-full text-sm">{children}</table>
+                        </div>
+                      ),
+                      th: ({ children }) => (
+                        <th className="bg-secondary/50 px-4 py-2 text-left font-semibold text-foreground">{children}</th>
+                      ),
+                      td: ({ children }) => (
+                        <td className="border-t border-border px-4 py-2 text-foreground/90">{children}</td>
+                      ),
                     }}
                   >
                     {lesson.content}
@@ -301,8 +364,8 @@ export default function LessonViewer() {
                   )}
                 </Button>
               </>
-            ) : lesson.content_type === 'quiz' ? (
-              // Quiz lessons are completed automatically when passing
+            ) : lesson.content_type === 'quiz' || lesson.content_type === 'coding_challenge' ? (
+              // Quiz & coding challenge lessons are completed automatically
               null
             ) : (
               <Button variant="hero" onClick={handleComplete} disabled={completing}>
