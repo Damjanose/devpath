@@ -141,7 +141,6 @@ export function QuizSection({ questions, onComplete, onContinue, pointsReward = 
         <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
           <div 
             className="bg-primary h-2 rounded-full transition-all duration-300"
-            // Dynamic width for progress bar - inline style is necessary
             style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
           />
         </div>

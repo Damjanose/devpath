@@ -73,23 +73,37 @@ function renderCodeBlock(children: ReactNode) {
  * Format B (seed-new-courses.ts): content is a JSON object
  *   { title, passingScore, questions: [{ id, question, options: [{id,text}], correctAnswer: "a", explanation }] }
  */
-function normalizeQuizQuestions(raw?: string) {
+interface RawQuizQuestion {
+  question?: string;
+  options?: Array<string | { id?: string; text?: string }>;
+  correctAnswer?: number | string;
+  explanation?: string;
+}
+
+interface NormalizedQuizQuestion {
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  explanation?: string;
+}
+
+function normalizeQuizQuestions(raw?: string): NormalizedQuizQuestion[] {
   if (!raw) return [];
   try {
-    const parsed = JSON.parse(raw);
+    const parsed: RawQuizQuestion[] | { questions?: RawQuizQuestion[] } = JSON.parse(raw);
     const letterToIndex: Record<string, number> = { a: 0, b: 1, c: 2, d: 3, e: 4, f: 5 };
 
     // Extract the array of questions
-    const questions: any[] = Array.isArray(parsed)
+    const questions: RawQuizQuestion[] = Array.isArray(parsed)
       ? parsed
       : Array.isArray(parsed.questions)
         ? parsed.questions
         : [];
 
-    return questions.map((q: any) => ({
+    return questions.map((q) => ({
       question: q.question ?? "",
       options: Array.isArray(q.options)
-        ? q.options.map((o: any) => (typeof o === "string" ? o : o?.text ?? String(o)))
+        ? q.options.map((o) => (typeof o === "string" ? o : o?.text ?? String(o)))
         : [],
       correctAnswer:
         typeof q.correctAnswer === "number"
@@ -128,14 +142,16 @@ export default function LessonViewer() {
 
   const nextLessonId = useMemo(() => {
     if (!courseData || !lesson) return null;
-    const modules = (courseData as any).modules || [];
+    const courseRecord = courseData as Record<string, unknown> | null;
+    const modules = (courseRecord?.modules ?? []) as Array<Record<string, unknown>>;
     const allLessons: Array<{ id: string; moduleOrder: number; lessonOrder: number }> = [];
-    modules.forEach((mod: any, modIndex: number) => {
-      mod.lessons?.forEach((les: any) => {
+    modules.forEach((mod, modIndex: number) => {
+      const lessons = (mod.lessons ?? []) as Array<Record<string, unknown>>;
+      lessons.forEach((les) => {
         allLessons.push({
-          id: les.id,
+          id: les.id as string,
           moduleOrder: modIndex,
-          lessonOrder: les.sort_order || 0,
+          lessonOrder: (les.sort_order as number) || 0,
         });
       });
     });
@@ -163,7 +179,7 @@ export default function LessonViewer() {
       return Math.random() * (max - min) + min;
     }
 
-    const interval: any = setInterval(function() {
+    const interval: ReturnType<typeof setInterval> = setInterval(function() {
       const timeLeft = animationEnd - Date.now();
 
       if (timeLeft <= 0) {
@@ -217,8 +233,9 @@ export default function LessonViewer() {
           }, 3000);
         }
       }
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Something went wrong";
+      toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setCompleting(false);
     }
@@ -370,7 +387,7 @@ export default function LessonViewer() {
               // Quiz & coding challenge lessons are completed automatically
               null
             ) : (
-              <Button variant="hero" onClick={handleComplete} disabled={completing}>
+              <Button variant="hero" onClick={() => handleComplete()} disabled={completing}>
                 {completing ? "Completing..." : "Mark as Complete"}
               </Button>
             )}
