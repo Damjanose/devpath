@@ -1,14 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchEnrollmentsByEmail } from "@/lib/api";
 
-export function enrollmentsQueryKey(email: string) {
-  return ["enrollments", email] as const;
+export function enrollmentsQueryKey(userId: string) {
+  return ["enrollments", userId] as const;
 }
 
-export function useEnrollmentsQuery(email: string | undefined) {
+export function useEnrollmentsQuery(userId: string | undefined, email?: string | null) {
   return useQuery({
-    queryKey: enrollmentsQueryKey(email!),
+    queryKey: enrollmentsQueryKey(userId!),
     queryFn: () => fetchEnrollmentsByEmail(email!),
-    enabled: !!email,
+    enabled: !!userId && !!email,
   });
 }

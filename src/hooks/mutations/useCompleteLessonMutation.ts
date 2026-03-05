@@ -1,34 +1,52 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { completeLessonByEmail } from "@/lib/api";
 
+interface CompleteLessonVars {
+  lessonId: string;
+  userId: string;
+  courseId?: string;
+  pointsReward: number;
+  email: string;
+}
+
+interface CompleteLessonResult {
+  alreadyCompleted: boolean;
+  pointsEarned: number;
+  progress: number;
+}
+
+async function completeLessonViaApi(
+  vars: CompleteLessonVars
+): Promise<CompleteLessonResult> {
+  const result = await completeLessonByEmail(vars.lessonId, vars.email);
+
+  if (!result) {
+    return { alreadyCompleted: false, pointsEarned: 0, progress: 0 };
+  }
+
+  return {
+    alreadyCompleted: (result.already_completed as boolean) ?? false,
+    pointsEarned: (result.points_earned as number) ?? vars.pointsReward,
+    progress: (result.progress as number) ?? 0,
+  };
+}
+
 export function useCompleteLessonMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      lessonId,
-      email,
-    }: {
-      lessonId: string;
-      email: string;
-      courseId?: string;
-    }) => completeLessonByEmail(lessonId, email),
+    mutationFn: (vars: CompleteLessonVars) => completeLessonViaApi(vars),
     onSuccess: (_data, variables) => {
-      // Invalidate progress for the course
       if (variables.courseId) {
         queryClient.invalidateQueries({
-          queryKey: ["courseProgress", variables.email, variables.courseId],
+          queryKey: ["courseProgress", variables.userId, variables.courseId],
         });
       }
-      // Invalidate enrollments (progress_percentage may have changed)
       queryClient.invalidateQueries({
-        queryKey: ["enrollments", variables.email],
+        queryKey: ["enrollments", variables.userId],
       });
-      // Invalidate profile (XP/level may have changed)
       queryClient.invalidateQueries({ queryKey: ["profile"] });
-      // Invalidate user badges
       queryClient.invalidateQueries({ queryKey: ["userBadges"] });
-      // Invalidate lesson progress count
       queryClient.invalidateQueries({ queryKey: ["lessonProgress"] });
     },
   });

@@ -11,8 +11,9 @@ const createBadgeSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
   iconUrl: z.string().url().optional().or(z.literal("")),
-  conditionType: z.enum(["points_total", "courses_completed", "lessons_completed", "streak_days"]),
+  conditionType: z.enum(["points_total", "courses_completed", "lessons_completed", "streak_days", "course_completed"]),
   conditionValue: z.number().int().min(1),
+  courseId: z.string().uuid().optional(),
   tier: z.enum(["bronze", "silver", "gold", "platinum"]).optional(),
 });
 

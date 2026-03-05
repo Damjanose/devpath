@@ -60,59 +60,73 @@ function toSnakeCase(obj: unknown): unknown {
 }
 
 export async function fetchCourses(): Promise<Record<string, unknown>[]> {
+  // Try Supabase first
+  const { data: sbCourses } = await supabase
+    .from("courses")
+    .select("*")
+    .eq("is_published", true)
+    .order("created_at", { ascending: false });
+
+  if (sbCourses && sbCourses.length > 0) {
+    return sbCourses as unknown as Record<string, unknown>[];
+  }
+
+  // Fallback to Express API (data may live in local Postgres)
   const res = await fetch(`${API_BASE}/courses`);
   if (!res.ok) return [];
   const json = await res.json();
-  const courses = json.data || [];
-  return courses.map(toSnakeCase) as Record<string, unknown>[];
+  const courses = json.data || json;
+  return (Array.isArray(courses) ? courses : []).map((c: unknown) => toSnakeCase(c)) as Record<string, unknown>[];
 }
 
 export async function fetchCourse(id: string): Promise<Record<string, unknown> | null> {
-  const res = await fetch(`${API_BASE}/courses/${id}`);
-  if (res.ok) {
-    const json = await res.json();
-    return toSnakeCase(json.data) as Record<string, unknown>;
-  }
-
+  // Try Supabase first
   const { data } = await supabase
     .from("courses")
     .select("*, modules(*, lessons(*))")
     .eq("id", id)
     .maybeSingle();
 
-  if (!data) return null;
+  if (data) {
+    const normalizedModules = (data.modules || []).map((module: Record<string, unknown>) => ({
+      ...module,
+      lessons: [...((module.lessons as unknown[]) || [])].sort(
+        (a, b) => ((a as Record<string, number>).sort_order || 0) - ((b as Record<string, number>).sort_order || 0)
+      ),
+    }));
+    normalizedModules.sort(
+      (a, b) => ((a as unknown as Record<string, number>).sort_order || 0) - ((b as unknown as Record<string, number>).sort_order || 0)
+    );
+    return { ...data, modules: normalizedModules } as unknown as Record<string, unknown>;
+  }
 
-  const normalizedModules = (data.modules || []).map((module) => ({
-    ...module,
-    lessons: [...(module.lessons || [])].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)),
-  }));
-
-  normalizedModules.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
-
-  return {
-    ...data,
-    modules: normalizedModules,
-  } as unknown as Record<string, unknown>;
+  // Fallback to Express API
+  const res = await fetch(`${API_BASE}/courses/${id}`);
+  if (!res.ok) return null;
+  const json = await res.json();
+  return toSnakeCase(json.data || json) as Record<string, unknown>;
 }
 
 export async function fetchLesson(id: string): Promise<Record<string, unknown> | null> {
-  const res = await fetch(`${API_BASE}/lessons/${id}`);
-  if (res.ok) {
-    const json = await res.json();
-    return toSnakeCase(json.data) as Record<string, unknown>;
-  }
-
+  // Try Supabase first
   const { data } = await supabase
     .from("lessons")
     .select("*, module:modules(id, title, course_id)")
     .eq("id", id)
     .maybeSingle();
 
-  if (!data) return null;
-  return data as unknown as Record<string, unknown>;
+  if (data) return data as unknown as Record<string, unknown>;
+
+  // Fallback to Express API
+  const res = await fetch(`${API_BASE}/lessons/${id}`);
+  if (!res.ok) return null;
+  const json = await res.json();
+  return toSnakeCase(json.data || json) as Record<string, unknown>;
 }
 
 export async function enrollCourse(courseId: string, email: string): Promise<Record<string, unknown> | null> {
+  // Get user by email from Supabase auth — look up in profiles via user table
+  // Use the Express API as it handles user creation for guests
   const res = await fetch(`${API_BASE}/enrollments/guest`, {
     method: "POST",
     headers: {
@@ -129,38 +143,34 @@ export async function enrollCourse(courseId: string, email: string): Promise<Rec
 }
 
 export async function fetchMyEnrollments(): Promise<Record<string, unknown>[]> {
+  // Use Express API — enrollment data lives in local Postgres
   const res = await fetch(`${API_BASE}/enrollments/my`, {
     credentials: "include",
   });
   if (!res.ok) return [];
   const json = await res.json();
-  const enrollments = json.data || [];
-  return enrollments.map(toSnakeCase) as Record<string, unknown>[];
+  const enrollments = json.data || json;
+  return (Array.isArray(enrollments) ? enrollments : []).map((e: unknown) => toSnakeCase(e)) as Record<string, unknown>[];
 }
 
 export async function fetchEnrollmentsByEmail(email: string): Promise<Record<string, unknown>[]> {
+  // Use Express API — enrollment data lives in local Postgres
   const res = await fetch(`${API_BASE}/enrollments/by-email?email=${encodeURIComponent(email)}`);
   if (!res.ok) return [];
   const json = await res.json();
-  const enrollments = json.data || [];
-  return enrollments.map(toSnakeCase) as Record<string, unknown>[];
+  const enrollments = json.data || json;
+  return (Array.isArray(enrollments) ? enrollments : []).map((e: unknown) => toSnakeCase(e)) as Record<string, unknown>[];
 }
 
 export async function fetchCourseProgressByEmail(email: string, courseId: string): Promise<{ completed_lesson_ids: string[]; progress_percentage: number }> {
+  // Use Express API — progress data lives in local Postgres
   const res = await fetch(`${API_BASE}/enrollments/progress-by-email?email=${encodeURIComponent(email)}&courseId=${encodeURIComponent(courseId)}`);
-  if (!res.ok) {
-    return { completed_lesson_ids: [], progress_percentage: 0 };
-  }
-
+  if (!res.ok) return { completed_lesson_ids: [], progress_percentage: 0 };
   const json = await res.json();
-  const data = toSnakeCase(json.data || {}) as Record<string, unknown>;
-  const completedLessonIds = (data.completed_lesson_ids as string[] | undefined) || [];
-  const enrollment = (data.enrollment as Record<string, unknown> | undefined) || {};
-  const progressPercentage = Number(enrollment.progress_percentage || 0);
-
+  const d = json.data || json;
   return {
-    completed_lesson_ids: completedLessonIds,
-    progress_percentage: progressPercentage,
+    completed_lesson_ids: d.completedLessonIds || d.completed_lesson_ids || [],
+    progress_percentage: Number(d.progressPercentage ?? d.progress_percentage ?? 0),
   };
 }
 

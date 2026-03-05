@@ -6,11 +6,13 @@ export function useEnrollCourseMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ courseId, email }: { courseId: string; email: string }) =>
-      enrollCourse(courseId, email),
+    mutationFn: ({ courseId, email }: { userId: string; courseId: string; email?: string }) => {
+      if (!email) throw new Error("Email is required for enrollment");
+      return enrollCourse(courseId, email);
+    },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({
-        queryKey: enrollmentsQueryKey(variables.email),
+        queryKey: enrollmentsQueryKey(variables.userId),
       });
     },
   });

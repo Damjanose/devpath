@@ -118,39 +118,43 @@ export const lessonService = {
       const progress = totalLessons > 0 ? (completedLessons / totalLessons) * 100 : 0;
       const isComplete = progress >= 100;
 
-      // Check if enrollment exists and if already completed
-      const enrollment = await tx.enrollment.findUnique({
+      // Check if enrollment exists — auto-enroll if missing
+      let enrollment = await tx.enrollment.findUnique({
         where: { userId_courseId: { userId, courseId } },
       });
 
-      let courseXpAwarded = 0;
-      if (enrollment) {
-        const updateData: any = { progressPercentage: progress };
-
-        if (isComplete && !enrollment.completedAt) {
-          updateData.completedAt = new Date();
-
-          // Award course completion XP
-          const course = await tx.course.findUnique({
-            where: { id: courseId },
-            select: { pointsReward: true },
-          });
-          if (course) {
-            courseXpAwarded = course.pointsReward;
-            const finalPoints = newPoints + courseXpAwarded;
-            const finalLevel = Math.floor(finalPoints / 500) + 1;
-            await tx.profile.update({
-              where: { userId },
-              data: { totalPoints: finalPoints, level: finalLevel },
-            });
-          }
-        }
-
-        await tx.enrollment.update({
-          where: { userId_courseId: { userId, courseId } },
-          data: updateData,
+      if (!enrollment) {
+        enrollment = await tx.enrollment.create({
+          data: { userId, courseId, progressPercentage: 0 },
         });
       }
+
+      let courseXpAwarded = 0;
+      const updateData: any = { progressPercentage: progress };
+
+      if (isComplete && !enrollment.completedAt) {
+        updateData.completedAt = new Date();
+
+        // Award course completion XP
+        const course = await tx.course.findUnique({
+          where: { id: courseId },
+          select: { pointsReward: true },
+        });
+        if (course) {
+          courseXpAwarded = course.pointsReward;
+          const finalPoints = newPoints + courseXpAwarded;
+          const finalLevel = Math.floor(finalPoints / 500) + 1;
+          await tx.profile.update({
+            where: { userId },
+            data: { totalPoints: finalPoints, level: finalLevel },
+          });
+        }
+      }
+
+      await tx.enrollment.update({
+        where: { userId_courseId: { userId, courseId } },
+        data: updateData,
+      });
 
       // 4. Check badge eligibility
       const updatedProfile = await tx.profile.findUnique({ where: { userId } });
@@ -185,6 +189,15 @@ export const lessonService = {
           case "lessons_completed":
             qualified = totalCompletedLessons >= badge.conditionValue;
             break;
+          case "course_completed": {
+            if (badge.courseId) {
+              const courseEnrollment = await tx.enrollment.findFirst({
+                where: { userId, courseId: badge.courseId, completedAt: { not: null } },
+              });
+              qualified = !!courseEnrollment;
+            }
+            break;
+          }
           case "streak_days":
             // Streak tracking deferred — skip for now
             break;

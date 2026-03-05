@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -19,29 +19,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const adminCheckIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    let mounted = true;
+
+    function handleSession(session: Session | null) {
+      if (!mounted) return;
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) {
-        checkAdminRole(session.user.id);
-      } else {
+
+      const uid = session?.user?.id ?? null;
+      if (uid && uid !== adminCheckIdRef.current) {
+        adminCheckIdRef.current = uid;
+        checkAdminRole(uid);
+      } else if (!uid) {
+        adminCheckIdRef.current = null;
         setIsAdmin(false);
       }
+
       setLoading(false);
-    });
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => handleSession(session)
+    );
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        checkAdminRole(session.user.id);
-      }
-      setLoading(false);
+      handleSession(session);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   async function checkAdminRole(userId: string) {
