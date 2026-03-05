@@ -188,7 +188,7 @@ export default function LessonViewer() {
     }, 250);
   }
 
-  async function handleComplete() {
+  async function handleComplete(autoNavigate = true) {
     if (!user || !lesson || completed) return;
     setCompleting(true);
     try {
@@ -211,9 +211,11 @@ export default function LessonViewer() {
           title: `+${result.pointsEarned} XP!`,
           description: "Lesson completed! 🎉",
         });
-        setTimeout(() => {
-          handleNextLesson();
-        }, 3000);
+        if (autoNavigate) {
+          setTimeout(() => {
+            handleNextLesson();
+          }, 3000);
+        }
       }
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -281,7 +283,7 @@ export default function LessonViewer() {
                   const questions = normalizeQuizQuestions(lesson.content);
                   const percentage = Math.round((score / questions.length) * 100);
                   if (percentage >= 70 && !completed) {
-                    handleComplete();
+                    handleComplete(false); // Don't auto-navigate — quiz shows its own results
                   }
                 }}
                 pointsReward={lesson.points_reward}
