@@ -4,8 +4,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { CheckCircle2, ArrowLeft, ArrowRight, Zap } from "lucide-react";
+import { CheckCircle2, ArrowLeft, ArrowRight, Zap, Volume2, VolumeX } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useTTS } from "@/hooks/useTTS";
+import { useTTSSettings } from "@/hooks/useTTSSettings";
+import { markdownToText } from "@/lib/markdownToText";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
@@ -140,6 +143,14 @@ export default function LessonViewer() {
   );
   const completed = lesson ? completedLessonIds.has(lesson.id) : false;
 
+  // Text-to-Speech
+  const tts = useTTS();
+  const ttsSettings = useTTSSettings();
+  const plainText = useMemo(
+    () => (lesson?.content ? markdownToText(lesson.content) : ""),
+    [lesson?.content]
+  );
+
   const nextLessonId = useMemo(() => {
     if (!courseData || !lesson) return null;
     const courseRecord = courseData as Record<string, unknown> | null;
@@ -271,7 +282,21 @@ export default function LessonViewer() {
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold text-foreground">{lesson.title}</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-foreground">{lesson.title}</h1>
+              {ttsSettings.enabled && lesson.content_type !== 'quiz' && lesson.content_type !== 'coding_challenge' && tts.isSupported && (
+                <button
+                  onClick={() => tts.isSpeaking ? tts.stop() : tts.speak(plainText)}
+                  className={`p-1.5 rounded-full transition-colors hover:bg-secondary ${
+                    tts.isSpeaking ? 'text-primary animate-pulse' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                  title={tts.isSpeaking ? 'Stop reading' : 'Listen to lesson'}
+                  aria-label={tts.isSpeaking ? 'Stop reading' : 'Listen to lesson'}
+                >
+                  {tts.isSpeaking ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                </button>
+              )}
+            </div>
             <span className="flex items-center gap-1 text-sm font-mono text-gold"><Zap className="h-4 w-4" />{lesson.points_reward} XP</span>
           </div>
 
