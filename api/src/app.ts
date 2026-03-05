@@ -44,19 +44,19 @@ app.get("/health", (_req, res) => {
 // API routes
 app.use("/api", routes);
 
+// Error handling for API routes
+app.use("/api", notFoundHandler);
+app.use(errorHandler);
+
 // --- Serve frontend static files in production ---
 if (!config.isDev) {
   const frontendDist = path.resolve(__dirname, "../../dist");
   app.use(express.static(frontendDist));
 
   // SPA fallback: any non-API route serves index.html
-  app.get("*", (_req, res, _next) => {
+  app.get("*", (_req, res) => {
     res.sendFile(path.join(frontendDist, "index.html"));
   });
 }
-
-// Error handling (only for API 404s in production, all 404s in dev)
-app.use(notFoundHandler);
-app.use(errorHandler);
 
 export default app;

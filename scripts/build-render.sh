@@ -2,10 +2,10 @@
 set -e
 
 echo "=== 1. Installing root dependencies ==="
-npm install
+npm install --production=false
 
 echo "=== 2. Building frontend (Vite) ==="
-npm run build
+npx vite build
 echo "Frontend built: $(ls -la dist/index.html)"
 
 echo "=== 3. Installing API dependencies ==="
