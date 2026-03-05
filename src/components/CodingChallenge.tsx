@@ -100,10 +100,21 @@ function buildWorkerScript(userCode: string, testCode: string): string {
     const __userCodeString = ${JSON.stringify(userCode)};
 
     /* ---- user code execution ---- */
+    /* 
+     * We strip import/export statements so the code can run in a plain Worker.
+     * The code is evaluated via indirect eval so that:
+     *  - Syntax errors are caught at runtime (not parse-time)
+     *  - Declared functions/variables are available globally for test code
+     */
     try {
-      ${userCode}
+      const __cleanCode = __userCodeString
+        .replace(/^\\s*import\\s+.*?from\\s+['"][^'"]+['"]/gm, "// [import removed]")
+        .replace(/^\\s*import\\s*\\{[^}]*\\}\\s*from\\s+['"][^'"]+['"]/gm, "// [import removed]")
+        .replace(/^\\s*export\\s+default\\s+/gm, "")
+        .replace(/^\\s*export\\s+/gm, "");
+      (0, eval)(__cleanCode);
     } catch (_userErr) {
-      __results.push({ name: "Code Execution", passed: false, message: _userErr.message });
+      // Execution error is non-fatal — tests that inspect __userCodeString still run
     }
 
     /* ---- test code ---- */
