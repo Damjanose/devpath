@@ -11,7 +11,6 @@
 import bcrypt from "bcryptjs";
 import { seedCourse, prisma } from "./seed-helpers";
 import { ContentType } from "@prisma/client";
-import { ContentType } from "@prisma/client";
 
 async function main() {
   console.log("🌱 Seeding Course 1: Web Fundamentals...\n");
