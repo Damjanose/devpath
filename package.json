@@ -12,6 +12,8 @@
     "api:dev": "cd api && npm run dev",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "build:render": "npm install && npm run build && cd api && npm install && npx prisma generate && npm run build",
+    "start:render": "cd api && node dist/index.js",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
