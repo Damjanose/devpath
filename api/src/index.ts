@@ -3,20 +3,34 @@ import { config } from "./config";
 import prisma from "./lib/prisma";
 
 async function main() {
-  try {
-    // Test database connection
-    await prisma.$connect();
-    console.log("✅ Database connected");
+  // Validate env early so deployment issues fail with actionable messages.
+  config.databaseUrl;
 
-    app.listen(config.port, () => {
-      console.log(`🚀 DevPath API running on http://localhost:${config.port}`);
-      console.log(`📋 Health check: http://localhost:${config.port}/health`);
-      console.log(`🔑 Environment: ${config.nodeEnv}`);
-    });
-  } catch (error) {
-    console.error("❌ Failed to start server:", error);
-    process.exit(1);
+  if (config.nodeEnv === "production") {
+    try {
+      await prisma.$connect();
+      console.log("✅ Database connected");
+    } catch (error) {
+      console.error("❌ Failed to start server:", error);
+      process.exit(1);
+    }
+  } else {
+    // In local dev we keep the API booting even if DB is not reachable yet.
+    prisma
+      .$connect()
+      .then(() => console.log("✅ Database connected"))
+      .catch((error: unknown) => {
+        const message =
+          error instanceof Error ? error.message : "Unknown database connection error";
+        console.warn(`⚠️ Database unavailable in development: ${message}`);
+      });
   }
+
+  app.listen(config.port, () => {
+    console.log(`🚀 DevPath API running on http://localhost:${config.port}`);
+    console.log(`📋 Health check: http://localhost:${config.port}/health`);
+    console.log(`🔑 Environment: ${config.nodeEnv}`);
+  });
 }
 
 // Graceful shutdown
