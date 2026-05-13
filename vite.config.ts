@@ -3,8 +3,28 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
+const PRODUCTION_ENV_KEYS = [
+  "VITE_SUPABASE_URL",
+  "VITE_SUPABASE_PUBLISHABLE_KEY",
+  "VITE_API_URL",
+] as const;
+
+function assertProductionEnv(mode: string) {
+  if (mode !== "production" || process.env.SKIP_ENV_VALIDATION === "true") {
+    return;
+  }
+
+  const missing = PRODUCTION_ENV_KEYS.filter((key) => !process.env[key]?.trim());
+  if (missing.length > 0) {
+    throw new Error(`Missing production build env: ${missing.join(", ")}`);
+  }
+}
+
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }) => {
+  assertProductionEnv(mode);
+
+  return {
   server: {
     host: "::",
     port: 8080,
@@ -59,4 +79,5 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
-}));
+  };
+});

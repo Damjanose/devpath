@@ -1,7 +1,21 @@
 // API helper for Express backend
 import { supabase } from "@/integrations/supabase/client";
 
-const API_BASE = import.meta.env.VITE_API_URL || "/api";
+function getApiBase(): string {
+  const raw = import.meta.env.VITE_API_URL?.trim();
+  if (!raw) {
+    return "/api";
+  }
+
+  const withoutTrailingSlash = raw.replace(/\/+$/, "");
+  if (withoutTrailingSlash.endsWith("/api")) {
+    return withoutTrailingSlash;
+  }
+
+  return `${withoutTrailingSlash}/api`;
+}
+
+const API_BASE = getApiBase();
 
 export interface ApiCourse {
   id: string;

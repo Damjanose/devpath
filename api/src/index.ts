@@ -4,6 +4,7 @@ import prisma from "./lib/prisma";
 
 async function main() {
   // Validate env early so deployment issues fail with actionable messages.
+  config.validateProductionEnv();
   config.databaseUrl;
 
   if (config.nodeEnv === "production") {

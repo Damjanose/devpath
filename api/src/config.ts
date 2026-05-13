@@ -44,6 +44,16 @@ function getPort(): number {
   return 3001;
 }
 
+function parseBooleanEnv(value: string | undefined, defaultValue: boolean): boolean {
+  if (value === undefined) {
+    return defaultValue;
+  }
+
+  return value === "true";
+}
+
+const DEV_JWT_SECRET = "devpath-jwt-secret";
+
 export const config = {
   get port() {
     return getPort();
@@ -52,13 +62,45 @@ export const config = {
     return process.env.NODE_ENV || "development";
   },
   get jwtSecret() {
-    return process.env.JWT_SECRET || "devpath-jwt-secret";
+    const secret = process.env.JWT_SECRET?.trim();
+    if (secret) {
+      return secret;
+    }
+
+    if (this.nodeEnv === "production") {
+      throw new Error("JWT_SECRET is not set");
+    }
+
+    return DEV_JWT_SECRET;
   },
   get jwtExpiresIn() {
     return process.env.JWT_EXPIRES_IN || "7d";
   },
-  get corsOrigin() {
-    return process.env.CORS_ORIGIN || "http://localhost:8080";
+  get corsOrigins() {
+    const raw = process.env.CORS_ORIGIN || "http://localhost:8080";
+    return raw
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean);
+  },
+  isCorsOriginAllowed(origin: string | undefined) {
+    if (!origin) {
+      return true;
+    }
+
+    const allowedOrigins = this.corsOrigins;
+    if (allowedOrigins.includes(origin)) {
+      return true;
+    }
+
+    if (
+      allowedOrigins.includes("*.vercel.app") &&
+      /^https:\/\/[a-z0-9-]+(?:\.[a-z0-9-]+)*\.vercel\.app$/i.test(origin)
+    ) {
+      return true;
+    }
+
+    return false;
   },
   get databaseUrl() {
     const raw = process.env.DATABASE_URL;
@@ -70,5 +112,19 @@ export const config = {
   },
   get isDev() {
     return process.env.NODE_ENV !== "production";
+  },
+  get serveFrontend() {
+    return parseBooleanEnv(process.env.SERVE_FRONTEND, false);
+  },
+  validateProductionEnv() {
+    if (this.nodeEnv !== "production") {
+      return;
+    }
+
+    this.jwtSecret;
+
+    if (this.corsOrigins.every((origin) => origin.includes("localhost"))) {
+      throw new Error("CORS_ORIGIN must include your production frontend URL");
+    }
   },
 };

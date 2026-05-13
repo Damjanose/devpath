@@ -13,6 +13,7 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "build:render": "chmod +x scripts/build-render.sh && ./scripts/build-render.sh",
+    "build:render:api": "chmod +x scripts/build-render-api.sh && ./scripts/build-render-api.sh",
     "start:render": "cd api && node dist/index.js",
     "render-start": "cd api && node dist/index.js",
     "lint": "eslint .",

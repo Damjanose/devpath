@@ -16,7 +16,14 @@ app.use(helmet({
 }));
 app.use(
   cors({
-    origin: config.corsOrigin,
+    origin(origin, callback) {
+      if (config.isCorsOriginAllowed(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   })
 );
@@ -48,12 +55,11 @@ app.use("/api", routes);
 app.use("/api", notFoundHandler);
 app.use(errorHandler);
 
-// --- Serve frontend static files in production ---
-if (!config.isDev) {
+// Optional monolith mode: serve the Vite build from the API host.
+if (!config.isDev && config.serveFrontend) {
   const frontendDist = path.resolve(__dirname, "../../dist");
   app.use(express.static(frontendDist));
 
-  // SPA fallback: any non-API route serves index.html
   app.get("*", (_req, res) => {
     res.sendFile(path.join(frontendDist, "index.html"));
   });
