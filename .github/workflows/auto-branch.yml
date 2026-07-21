@@ -1,0 +1,66 @@
+name: Auto-Create Issue Branch
+
+on:
+  issues:
+    types: [assigned, labeled]
+
+permissions:
+  contents: write
+  issues: write
+
+env:
+  # Change this to 'develop' or 'master' if you don't use 'main'
+  BASE_BRANCH: "main" 
+
+jobs:
+  create-branch:
+    runs-on: ubuntu-latest
+    # ONLY run if the issue has BOTH an assignee AND at least one label
+    if: github.event.issue.assignee != null && github.event.issue.labels[0] != null
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate and Push Branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUM: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ASSIGNEE: ${{ github.event.issue.assignee.login }}
+          # Grabs the FIRST label applied
+          LABEL: ${{ github.event.issue.labels[0].name }} 
+          
+        run: |
+          # 1. Sanitize the issue title (lowercase, replace spaces/special chars with hyphens)
+          SANITIZED_TITLE=$(echo "$ISSUE_TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')
+          
+          # 2. Construct branch name: {label}/{username}/{issue_id}-{title}
+          BRANCH_NAME="${LABEL}/${ASSIGNEE}/${ISSUE_NUM}-${SANITIZED_TITLE}"
+          echo "Target branch name: $BRANCH_NAME"
+          
+          # 3. Check if branch already exists (prevents duplicate creation if label/assignee is changed later)
+          if git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
+            echo "Branch $BRANCH_NAME already exists. Skipping creation."
+            exit 0
+          fi
+          
+          # 4. Setup Git config
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # 5. Fetch base branch, create new branch, and push
+          git fetch origin "$BASE_BRANCH"
+          git checkout "$BASE_BRANCH"
+          git checkout -b "$BRANCH_NAME"
+          git push origin "$BRANCH_NAME"
+          
+          # 6. Post a comment on the Issue
+          COMMENT_BODY="🚀 Ready for development! Branch \`$BRANCH_NAME\` has been created from \`$BASE_BRANCH\`. You can start working now!"
+          
+          curl -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUM/comments \
+            -d "{\"body\": \"$COMMENT_BODY\"}"
