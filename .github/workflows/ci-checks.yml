@@ -1,0 +1,32 @@
+name: CI Checks (Lint & Build)
+
+# Trigger this pipeline whenever a PR is opened or updated
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  verify-code:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # --- SETUP YOUR LANGUAGE ENVIRONMENT ---
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: npm install
+
+      # --- 1. LINT CHECK ---
+      - name: Run Linter
+        run: npm run lint 
+        # If this fails, the PR is blocked.
+
+      # --- 2. BUILD CHECK ---
+      - name: Run Build
+        run: npm run build
+        # If the code doesn't compile, the PR is blocked.
