@@ -1,0 +1,35 @@
+name: Manual Deployment Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Select environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # This links the job to GitHub Environments (great for audit logs and approvals)
+    environment: 
+      name: ${{ github.event.inputs.environment }}
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy to ${{ github.event.inputs.environment }}
+        run: |
+          echo "======================================"
+          echo "🚀 Starting deployment to ${{ github.event.inputs.environment }}..."
+          echo "======================================"
+          
+          # Here you would put your actual deployment commands
+          # For example: AWS CLI, Docker push, Vercel CLI, Azure, etc.
+          # aws s3 sync ./build s3://my-bucket-${{ github.event.inputs.environment }}/
+          
+          echo "✅ Deployment to ${{ github.event.inputs.environment }} completed successfully!"
