@@ -14,7 +14,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # This links the job to GitHub Environments (great for audit logs and approvals)
+    # Links to GitHub Environments for audit logs & approvals
     environment: 
       name: ${{ github.event.inputs.environment }}
     
@@ -28,8 +28,6 @@ jobs:
           echo "🚀 Starting deployment to ${{ github.event.inputs.environment }}..."
           echo "======================================"
           
-          # Here you would put your actual deployment commands
-          # For example: AWS CLI, Docker push, Vercel CLI, Azure, etc.
-          # aws s3 sync ./build s3://my-bucket-${{ github.event.inputs.environment }}/
+          # Add actual deployment commands here (AWS, Docker, Vercel, etc.)
           
           echo "✅ Deployment to ${{ github.event.inputs.environment }} completed successfully!"
